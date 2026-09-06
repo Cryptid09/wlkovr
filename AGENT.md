@@ -340,3 +340,26 @@ This file is a persistent, chronological log of all AI agent activities across s
   - The Gemini API key in `.env` should be rotated after the hackathon.
 - **Handoff / Next Recommended Steps**:
   - Remaining: Google Maps API key, and a real viasocket flow pointed at `/api/v1/webhooks/viasocket`.
+
+### 2026-09-06 14:55 IST - Claude Code (full system integration)
+- **Workstream / Goal**: Integrate mandeep's frontend with the backend and verify the whole system live
+- **Tasks Claimed/Completed**:
+  - Reconciled the diverged masters: local `master` (nidhi's docs + `USP.md`) with `origin/master` (PR #4, mandeep's frontend). Clean merge, no conflicts.
+  - Wired the missing live path: the dashboard handled `SIGNAL_RECEIVED` and `DECISION_RECORDED` but **not `CLUSTER_UPDATED`**, so a live message appeared in the feed while the cluster it joined never rescored on screen.
+  - Fixed the frontend build: leaflet/react-leaflet were in `package.json` but not installed, and `globals.css` imported `leaflet/dist/leaflet.css` as a bare specifier, which Tailwind v4's PostCSS cannot resolve.
+- **Files Modified/Created**:
+  - `[MOD] web/src/components/dashboard.tsx` — `CLUSTER_UPDATED` handler: replaces the cluster in state, keeps the selected cluster in sync, appends it if not already present, and raises a notice.
+  - `[MOD] web/src/app/layout.tsx`, `[MOD] web/src/app/globals.css` — leaflet stylesheet moved to a JS import, which Next resolves from node_modules.
+  - `[MOD] UNDERSTANDING.md` — maps row corrected to Leaflet/OpenStreetMap; status updated.
+- **Architectural & Design Decisions**:
+  - **The map is Leaflet + OpenStreetMap, not Google Maps Platform.** No Maps API key was ever provisioned and Leaflet needs none. `UNDERSTANDING.md` now records this, and the pitch must not claim Google Maps — the deck and any slide listing Google technologies need the same correction.
+  - `CLUSTER_UPDATED` appends an unseen cluster rather than dropping it, so a cluster formed after page load still appears without a refresh.
+- **Testing & Verification Conducted**:
+  - Backend: `go build`, `go vet`, `go test ./...` → PASS. Frontend: `npm run build` → 7 routes compiled.
+  - Live end-to-end with both servers running against Firestore and Gemini: a WebSocket client subscribed exactly as the dashboard does, then a Hinglish WhatsApp complaint was posted to `/api/v1/webhooks/viasocket`. Received in order: `SIGNAL_RECEIVED` (instant) → `SIGNAL_EXTRACTED` ("Sewage Contamination in Drinking Water Line" → indore-ward-02 / Water Supply & Sewerage) → `CLUSTER_UPDATED` (9 → 10 signals, need 97 → 100, TIER_1_CRITICAL).
+  - Confirmed every field the map and score components read is present in `/clusters` and `/wards`.
+- **Blockers / Open Questions**:
+  - The dashboard was not visually inspected in a browser — verification was at the API and WebSocket level. Someone should open http://localhost:3000 and confirm the map, markers and score bars render.
+  - `/api/v1/webhooks/viasocket` is unauthenticated: `VIASOCKET_WEBHOOK_SECRET` is loaded by config but no handler checks it. Matters once the endpoint is tunnelled publicly for the demo.
+- **Handoff / Next Recommended Steps**:
+  - `cd server && go run ./cmd/api` and `cd web && npm run dev`, then `POST /api/v1/demo/simulate` to fire the live sequence on stage.

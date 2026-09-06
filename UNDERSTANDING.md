@@ -29,7 +29,7 @@ An AI-assisted platform that sits *behind* existing citizen channels (no new app
 | Compute / Backend Engine | **Golang (Go)** (Gin/Chi HTTP framework, Gorilla/go-socket.io WebSockets, official Google Cloud Go SDKs for Gemini & Firestore on Cloud Run) |
 | AI/NLU (multilingual extraction, embeddings, summaries) | **Gemini 2.5 Flash** (via `github.com/google/generative-ai-go`), structured output mode & **`gemini-embedding-001`** (3072-dim). *`text-embedding-004` 404s on the v1beta endpoint this SDK uses — do not switch back.* |
 | Data store | **Firebase Firestore** (via official `cloud.google.com/go/firestore` Go SDK, Mandeep's 7 collections approach) |
-| Maps/visualization | **Google Maps Platform** (JS API for the hotspot map) |
+| Maps/visualization | **Leaflet + react-leaflet** with OpenStreetMap tiles. *Changed from Google Maps Platform during the build — no Maps API key was ever provisioned, and Leaflet needs none. The pitch must not claim Google Maps.* |
 | Frontend Dashboard | **Next.js 15 (TypeScript)** + Tailwind CSS + shadcn/ui + Recharts |
 
 ### Pitch Doc vs. Hackathon Build Scope
@@ -183,7 +183,7 @@ The ordering matters for the demo. `SIGNAL_RECEIVED` fires in milliseconds so a 
 5. **Dashboard** — Next.js + Tailwind + shadcn/ui + Recharts: Google Maps + priority queue + Urgency Tier badges + 4 score bars + human decision action buttons + `audit_logs`
 6. **Recommendation text** — Gemini grounded summary citing evidence $\rightarrow$ write to `recommendations`
 
-Status: **backend complete and verified end to end against live Firestore and live Gemini.** A multilingual WhatsApp/SMS message posted to the viasocket webhook is extracted, embedded, matched to an existing cluster, rescored and persisted, with every step broadcast over the WebSocket. Seeded corpus: 42 signals, 3 hotspot clusters, 2 blind-spot wards, 12 wards.
+Status: **full system wired and verified end to end** — Next.js dashboard ↔ Go backend ↔ live Firestore ↔ live Gemini. A multilingual WhatsApp/SMS message posted to the viasocket webhook is extracted, embedded, matched to an existing cluster, rescored and persisted, with every step broadcast over the WebSocket. Seeded corpus: 42 signals, 3 hotspot clusters, 2 blind-spot wards, 12 wards.
 
 Remaining: the Google Maps API key (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is empty), the frontend on its own branch, and pointing a real viasocket flow at `/api/v1/webhooks/viasocket` (see `docs/viasocket/VIASOCKET_SETUP_GUIDE.md`).
 

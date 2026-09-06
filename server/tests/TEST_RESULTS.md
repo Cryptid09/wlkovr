@@ -1,10 +1,6 @@
 # Comprehensive Test Execution Results (Track 2: Gemini NLU Pipeline)
 
-<<<<<<< HEAD
-**Execution Timestamp**: `2026-09-06 14:36:20 IST`
-=======
-**Execution Timestamp**: `2026-09-06 13:01:33 IST`
->>>>>>> origin/nidhi
+**Execution Timestamp**: `2026-09-06 14:48:06 IST`
 **Target Package**: `walkover/server/internal/extraction`
 **Test Runner**: `server/tests/` (Go 1.27.1 native toolchain)
 **Total Test Scenarios Executed**: 35
@@ -93,7 +89,7 @@
 
 | Test Case | Input | Expected Output | Actual Output | Status |
 |---|---|---|---|:---:|
-| **3 Corroborating Signals (Chandan Nagar Water)** | 3 signals across WhatsApp & SMS regarding sewage water in Ward 14 | Contains 'Ward 14 - Chandan Nagar', 'Water Supply & Sewerage', '3 reports', channel breakdown | Cluster Analysis for Ward 14 - Chandan Nagar [Water Supply & Sewerage]: <br> Aggregated 3 independent citizen reports (1 via SMS, 2 via WhatsApp). High-priority indicators identified: Water Contamination. Immediate on-site technical inspection and corrective team dispatch recommended to prevent community escalation and ensure public safety compliance. |  PASS |
+| **3 Corroborating Signals (Chandan Nagar Water)** | 3 signals across WhatsApp & SMS regarding sewage water in Ward 14 | Contains 'Ward 14 - Chandan Nagar', 'Water Supply & Sewerage', '3 reports', channel breakdown | Cluster Analysis for Ward 14 - Chandan Nagar [Water Supply & Sewerage]: <br> Aggregated 3 independent citizen reports (2 via WhatsApp, 1 via SMS). High-priority indicators identified: Water Contamination. Immediate on-site technical inspection and corrective team dispatch recommended to prevent community escalation and ensure public safety compliance. |  PASS |
 | **Empty Signal List Fallback** | 0 signals for Ward 1 - Banganga | Contains 'No active citizen signals currently recorded' | No active citizen signals currently recorded for Ward 1 - Banganga (Sanitation & Solid Waste). |  PASS |
 ### Prompt Engineering
 
