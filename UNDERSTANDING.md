@@ -25,34 +25,37 @@ An AI-assisted platform that sits *behind* existing citizen channels (no new app
 
 | Layer | Choice |
 |---|---|
-| Channel intake (WhatsApp/SMS webhooks) | **viasocket** → forwards to Cloud Run |
-| Compute | **Cloud Run** (ingestion, processing, dashboard) |
+| Channel intake & Realtime | **viasocket** (webhook intake/orchestration) + **Socket.IO** (real-time event streaming between gateway, processing & dashboard) |
+| Compute / Backend | **Cloud Run / Next.js API Routes** (ingestion, processing, WebSocket server, dashboard) |
 | AI/NLU (multilingual extraction, embeddings, summaries) | **Gemini** (via Vertex AI / Gemini API), structured output mode |
-| Data store | **Cloud SQL for PostgreSQL** with **pgvector** (embeddings) + **PostGIS** (geo) in one DB — no separate vector DB service |
+| Data store | **Firebase Firestore** (Mandeep's collections approach: `raw_events`, `citizen_signals`, `ai_extractions`, `clusters`, `hotspots`, `recommendations`, `audit_logs`) |
 | Maps/visualization | **Google Maps Platform** (JS API for the hotspot map) |
-| Frontend | Next.js dashboard on Cloud Run/Firebase Hosting |
+| Frontend | Next.js + Tailwind + shadcn/ui + Recharts on Cloud Run / Firebase Hosting |
 
-### Cut for the hackathon build (do not build these unless time allows / explicitly asked)
-- **Cloud Pub/Sub** — not needed at demo data volumes; direct Cloud Run→Cloud Run calls instead.
-- **Live voice calls / telephony / call centres** — the hard part is the telephony leg, not the AI. Cut entirely for v1.
-- **Voice notes via Speech-to-Text** — good v1.5 addition if time remains (viasocket already delivers WhatsApp audio files; one Cloud Speech-to-Text call transcribes them), but not required for the core demo.
-- **Live Google Maps Geocoding API calls** — ward centroids are hardcoded in the seed dataset instead; Gemini extracts the ward *name*, matched by lookup, not geocoded live.
-- **Firebase Auth / RBAC** — demo dashboard is unlocked; auth is a roadmap line only.
-- **Vertex AI Model Evaluation** — MLOps nicety, not a demo feature.
-- Everything under "Scalability across India and BRICS" and "Future Development" in the original deck is pitch narrative only — no engineering time against it.
+### Pitch Doc vs. Hackathon Build Scope
+- **Pitch Doc (`mandeep.md`)**: Preserves the complete long-term architecture diagram with full multi-modal pipelines (Voice STT, Email OCR, WhatsApp Image OCR, Citizen Portal, Pub/Sub Event Bus).
+- **Hackathon Build Scope**: Focuses on text/voice-note WhatsApp intake via viasocket + Socket.IO, Gemini structured extraction, Firestore collections, and Next.js policymaker dashboard. Cut for demo: live telephony, manual email OCR, Firebase Auth, live geocoding API calls.
 
-## Data model essentials
+## Data model essentials (Firestore Collections)
 
-- **Ward reference dataset**: ~15–20 Indore wards, hardcoded, each with: ward name/ID, centroid lat/long, a demographic/infra index, past public investment. Real open data if findable quickly; plausible synthetic numbers otherwise — this is fine to say out loud, it's a demo dataset.
+Following Mandeep's data architecture, Firestore stores state across separate collections to ensure traceability and auditability:
+- `wards`: Indore ward reference dataset (~15–20 wards with centroids, demographic/infra index, historical investment).
+- `raw_events`: Raw webhook event payloads from viasocket / Socket.IO.
+- `citizen_signals`: Normalized canonical citizen signal (ID, provider, rawText, language, location, timestamp, metadata).
+- `ai_extractions`: Gemini structured extractions (issue, category, department, severity/urgency, location, summary, embeddings).
+- `clusters` / `hotspots`: Clustered issues with 4D scores (Need, Confidence, Equity, Actionability) and corroborating signal references.
+- `recommendations`: Grounded AI policy recommendations citing cluster evidence.
+- `audit_logs`: Policymaker human decisions (Accept / Reject / Investigate actions, timestamps, and notes).
+
 - **Seed submissions**: ~30–50 synthetic citizen submissions across those wards, deliberately constructed so:
-  - 3–4 wards get 5+ submissions each, in different languages/channels/wording, describing the *same* underlying issue (this is what proves clustering works).
-  - 2–3 wards get almost no submissions but score poorly on the infra/demographic index (this is what proves blind-spot detection works).
+  - 3–4 wards get 5+ submissions each, in different languages/channels/wording, describing the *same* underlying issue (proves clustering).
+  - 2–3 wards get almost no submissions but score poorly on the infra/demographic index (proves blind-spot detection).
   - The rest are background noise.
-- During the live demo, 1–2 *real* messages are submitted live via WhatsApp so judges see the actual pipeline fire, landing alongside the seeded history. Be upfront that historical volume is seeded and the live path is real — don't blur this distinction if asked.
+- During the live demo, 1–2 *real* messages are submitted live via WhatsApp/Socket.IO so judges see the actual pipeline fire in real-time alongside seeded history.
 
 ## Clustering approach
 
-Gemini embeddings on the extracted issue text → pgvector cosine similarity, threshold-based grouping (constrained to same ward, since two similar complaints in different wards are different issues). No need for Vertex AI Vector Search or any heavyweight clustering algorithm at this data scale — a simple threshold/union-find grouping is sufficient and realistic.
+Gemini embeddings on the extracted issue text $\rightarrow$ in-memory cosine similarity threshold grouping (constrained to the same ward, since similar complaints in different wards are distinct issues) $\rightarrow$ write computed clusters and hotspots directly to Firestore. Simple, fast, and eliminates heavy external vector DB dependencies during hackathon execution.
 
 ## Scoring — four dimensions (defined here since the original deck named them but never specified the math)
 
@@ -63,17 +66,17 @@ Gemini embeddings on the extracted issue text → pgvector cosine similarity, th
 
 These four are shown **as separate bars on the dashboard**, never collapsed into one hidden "priority score" — that's the deck's explainability claim and it must hold in the actual UI.
 
-Blind spots use a plain rule: ward has a poor infra/demographic index but submission count is below a threshold → flag as blind-spot candidate. No anomaly-detection model needed.
+Blind spots use a plain rule: ward has a poor infra/demographic index but submission count is below a threshold → flag as blind-spot candidate.
 
 ## Build order / workstreams (parallelizable across the 4-person team)
 
-1. **Ingestion** — viasocket → WhatsApp webhook → Cloud Run endpoint → common signal schema → write raw submission to Postgres
-2. **Extraction** — Gemini structured output (issue, ward, service, urgency, intent) per submission
-3. **Data layer + seed** — Postgres (pgvector + PostGIS), ward CSV, seed script
-4. **Clustering + scoring** — embedding threshold clustering, then the four formulas above (plain app logic)
-5. **Dashboard** — Next.js: map + priority list + four score bars + accept/reject/investigate buttons + decision log
-6. **Recommendation text** — one Gemini call per cluster, generating a grounded summary citing the cluster's actual evidence; bolt on last
+1. **Ingestion & Realtime** — viasocket webhook + Socket.IO real-time event pipeline $\rightarrow$ Canonical Citizen Signal $\rightarrow$ write to Firestore `raw_events` & `citizen_signals`
+2. **Extraction** — Gemini structured output (issue, ward, service, urgency, intent) + embeddings per submission $\rightarrow$ write to `ai_extractions`
+3. **Data layer + seed** — Firestore collections setup, ward CSV, seed script (~30-50 complaints)
+4. **Clustering + scoring** — In-memory cosine threshold clustering per ward + 4-dimension scoring engine + blind spot detection $\rightarrow$ write to `clusters` & `hotspots`
+5. **Dashboard** — Next.js + Tailwind + shadcn/ui + Recharts: Google Maps + priority queue + 4 score bars + human decision action buttons + `audit_logs`
+6. **Recommendation text** — Gemini grounded summary citing evidence $\rightarrow$ write to `recommendations`
 
-Status as of this writing: **nothing built yet** — this document was written at the planning stage.
+Status as of this writing: **Architecture & Stack Aligned** — ready for implementation.
 
-Related file: `rules.md` — collaboration rules for any AI model working in this repo. Read it before making changes.
+Related files: `rules.md` (collaboration & engineering rules), `PROGRESS.md` (task board & test separation), `AGENT.md` (agent work journal), `mandeep.md` (pitch architecture document).
