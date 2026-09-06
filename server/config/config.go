@@ -19,6 +19,9 @@ type Config struct {
 	GoogleCloudProject     string
 	FirestoreEmulatorHost  string
 	ViasocketWebhookSecret string
+	TwilioAccountSID       string
+	TwilioAuthToken        string
+	TwilioWhatsAppFrom     string
 }
 
 // LoadConfig loads configuration from .env and environment variables
@@ -51,6 +54,11 @@ func LoadConfig() *Config {
 		GoogleCloudProject:     getEnv("GOOGLE_CLOUD_PROJECT", "zen-dev-intelligence"),
 		FirestoreEmulatorHost:  getEnv("FIRESTORE_EMULATOR_HOST", ""),
 		ViasocketWebhookSecret: getEnv("VIASOCKET_WEBHOOK_SECRET", "zen-secret-key-12345"),
+		TwilioAccountSID:       getEnv("TWILIO_ACCOUNT_SID", ""),
+		// No default: without an auth token the platform simply does not send
+		// WhatsApp replies. A placeholder would look configured and fail late.
+		TwilioAuthToken:    getEnv("TWILIO_AUTH_TOKEN", ""),
+		TwilioWhatsAppFrom: getEnv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886"),
 	}
 }
 

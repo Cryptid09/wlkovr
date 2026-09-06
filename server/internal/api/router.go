@@ -54,6 +54,9 @@ func SetupRouter(cfg *config.Config, handler *Handler, hub *Hub) *gin.Engine {
 		v1.POST("/decisions", handler.RecordDecision)
 		v1.GET("/audit-logs", handler.GetAuditLogs)
 
+		// Policymaker assistant — grounded Q&A over the evidence on screen
+		v1.POST("/assistant", handler.AskAssistant)
+
 		// Live Simulation for Demo testing
 		v1.POST("/demo/simulate", handler.SimulateLiveMessage)
 	}

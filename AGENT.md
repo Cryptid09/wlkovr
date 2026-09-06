@@ -417,3 +417,52 @@ This file is a persistent, chronological log of all AI agent activities across s
   - The dashboard still has not been visually inspected in a browser.
 - **Handoff / Next Recommended Steps**:
   - Paste the current tunnel URL + `/api/v1/webhooks/viasocket` into the viasocket flow's HTTP action, with header `X-Webhook-Secret`.
+
+### 2026-09-06 15:35 IST - Claude Code (policymaker assistant)
+- **Workstream / Goal**: Make the dashboard's AI panel actually work against real evidence
+- **Tasks Claimed/Completed**:
+  - The help panel was not connected to anything: `guidance()` in `ai-help-panel.tsx` was keyword matching over hardcoded strings, with no model call. Replaced with a grounded backend endpoint.
+- **Files Modified/Created**:
+  - `[NEW] server/internal/api/assistant.go` — `POST /api/v1/assistant`, evidence assembly, constrained prompt, deterministic offline answers.
+  - `[NEW] server/internal/api/assistant_test.go` — 5 tests.
+  - `[MOD] server/internal/extraction/gemini.go` — `Ask` for free-form grounded prompts, temperature 0.2, same degrade-visibly error contract.
+  - `[MOD] server/internal/api/router.go`, `[MOD] web/src/lib/api.ts`, `[MOD] web/src/components/ai-help-panel.tsx`, `[MOD] PROGRESS.md`.
+- **Architectural & Design Decisions**:
+  - **The assistant reads evidence; it does not decide.** Its instructions forbid recommending approval, funding, sanctioning or closure, and require it to say when the evidence cannot answer. Verified live: asked to approve a budget and close a case it declined, noted no budget data exists, and redirected to field verification.
+  - **Grounding includes citizen reports verbatim in their original language**, so answers cite actual Hindi/Hinglish/English evidence rather than paraphrase.
+  - **Low participation is framed as a blind spot, never as absence of need** — stated as a prompt rule, since the opposite reading is the exact failure the platform exists to prevent.
+  - **Answers carry their provenance.** The response includes `source` and `grounded_on`; the UI labels an offline answer so an official is never shown a stored-data reading as though it were model reasoning.
+- **Testing & Verification Conducted**:
+  - `go build`, `go vet`, `go test ./...` → PASS. `npm run build` → clean.
+  - Live against Gemini 3.6 and seeded Firestore: "Why is this a priority?" returned the correct tier, urgency, the three real risk drivers, all four scores and the 8 corroborating signals. "Which wards might be hiding unmet need?" correctly named Wards 1 and 78 and recommended outreach. An out-of-scope question about Bhopal was declined with what would need checking instead.
+- **Blockers / Open Questions**:
+  - Answers are not persisted; the panel's history is per-session only. Fine for the demo, but there is no audit trail of what the assistant told an official.
+- **Handoff / Next Recommended Steps**:
+  - The panel opens from the header and sidebar; ask it about the selected cluster or ward.
+
+### 2026-09-06 16:10 IST - Claude Code (Twilio WhatsApp channel)
+- **Workstream / Goal**: Integrate the Twilio WhatsApp sandbox with the platform
+- **Tasks Claimed/Completed**:
+  - Backend now accepts Twilio's form-encoded webhook alongside viasocket JSON, and replies to the citizen once their report is understood.
+  - Rewrote `docs/twilio/twilio_viasocket_whatsapp_setup.md` around the platform and moved it out of the repo root.
+- **Files Modified/Created**:
+  - `[NEW] server/internal/api/twilio.go` — payload adapter, acknowledgement composer, Twilio Messages API client.
+  - `[NEW] server/internal/api/twilio_test.go` — 6 tests built on the verified sandbox payload.
+  - `[MOD] server/internal/api/handlers.go` — content-type detection, and a body/media presence check.
+  - `[MOD] server/internal/api/pipeline.go` — `attachToCluster` now returns the corroborating count, used in the reply.
+  - `[MOD] server/config/config.go`, `.env`, `.env.example` — Twilio settings.
+  - `[MOD] PROGRESS.md`, `[MOV] docs/twilio/...`.
+- **Architectural & Design Decisions**:
+  - **The documented plan would have bypassed the platform.** It described Webhook → Gemini → Twilio reply, which is a generic chatbot: no ward extraction, no clustering, nothing on the dashboard. The message now flows through the full pipeline and the reply is the last step, not the only one.
+  - **Both payload shapes are accepted** so a slightly misconfigured viasocket action cannot break ingestion on demo day.
+  - **The acknowledgement is a receipt, not a promise.** It reports the issue, ward, department and corroborating count, and states that nothing has been approved automatically — consistent with the human-in-the-loop rule that the platform never commits the government to anything.
+  - **Replies are credential-gated.** Without `TWILIO_AUTH_TOKEN` ingestion works normally and nothing is sent, rather than failing the request.
+- **Testing & Verification Conducted**:
+  - `go build`, `go vet`, `go test ./...` → PASS.
+  - Live: the exact Twilio sandbox payload posted through the public tunnel was parsed (provider WhatsApp, phone `+916232230297` with the prefix stripped, `ProfileName`/`WaId`/`MessageSid` retained), extracted by Gemini, matched into `cluster-indore-001` (8 → 9 signals) and persisted.
+- **Blockers / Open Questions**:
+  - `TWILIO_AUTH_TOKEN` is not set, so citizen replies are not being sent yet.
+  - The viasocket flow still has no HTTP action — that console step is what closes WhatsApp → dashboard.
+  - Twilio's `X-Twilio-Signature` is not validated. The shared secret protects the endpoint, but if Twilio is ever pointed straight at the backend (bypassing viasocket) signature validation would be the correct check, since Twilio cannot send custom headers.
+- **Handoff / Next Recommended Steps**:
+  - Add the viasocket HTTP action per §10 of the setup doc, then send a WhatsApp message to the sandbox and watch the dashboard.

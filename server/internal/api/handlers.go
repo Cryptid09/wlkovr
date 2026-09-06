@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -297,11 +298,24 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 
 // HandleViasocketWebhook processes incoming WhatsApp/SMS webhook from viasocket
 func (h *Handler) HandleViasocketWebhook(c *gin.Context) {
+	// Twilio posts form-encoded fields; viasocket posts normalised JSON. Accept
+	// both so the same endpoint works whether the flow transforms the payload
+	// or forwards it untouched.
 	var payload models.ViasocketPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
+	if isTwilioForm(c) {
+		payload = payloadFromTwilio(c)
+	} else if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, models.ApiResponse{
 			Success: false,
 			Error:   "Invalid webhook payload: " + err.Error(),
+		})
+		return
+	}
+
+	if strings.TrimSpace(payload.Body) == "" && payload.MediaURL == "" {
+		c.JSON(http.StatusBadRequest, models.ApiResponse{
+			Success: false,
+			Error:   "Webhook payload carries no message body",
 		})
 		return
 	}
