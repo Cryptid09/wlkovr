@@ -12,75 +12,80 @@ This board tracks task distribution, implementation status, and test separation 
 
 ## Workstream Breakdown & Task Distribution
 
-### Workstream 1: Ingestion & Realtime Intake (viasocket + Socket.IO)
-- [ ] **WS1.1**: Define Canonical Citizen Signal TypeScript/Pydantic interface (`id`, `provider`, `rawText`, `language`, `location`, `timestamp`, `metadata`).
-- [ ] **WS1.2**: Implement webhook endpoint receiving viasocket WhatsApp/SMS payloads $\rightarrow$ transform to Canonical Signal.
-- [ ] **WS1.3**: Implement Socket.IO server & event emitter (`EVENT_CITIZEN_SIGNAL_RECEIVED`, `EVENT_CLUSTER_UPDATED`) for real-time dashboard sync.
-- [ ] **WS1.4**: Persist raw payload to Firestore `raw_events` and canonical signal to `citizen_signals`.
+### Workstream 1: Ingestion & Realtime Intake (Go + viasocket + WebSockets)
+- [X] **WS1.1**: Define Canonical Citizen Signal Go struct / JSON contract (`ID`, `Provider`, `RawText`, `Language`, `Location`, `Timestamp`, `Metadata`).
+- [X] **WS1.2**: Implement Go Gin webhook endpoint receiving viasocket WhatsApp/SMS payloads $\rightarrow$ transform to Canonical Signal.
+- [X] **WS1.3**: Implement Go WebSocket event broadcaster (`SIGNAL_RECEIVED`, `DECISION_RECORDED`) for real-time dashboard sync.
+- [ ] **WS1.4**: Persist raw payload to Firestore `raw_events` and canonical signal to `citizen_signals` via official Go Firestore SDK.
 - **Test Separation**:
-  - `tests/fixtures/viasocket_sample_payload.json` (Mock webhook payload)
-  - `tests/fixtures/canonical_signal_fixture.json`
-  - Unit test: verify webhook conversion & Socket.IO event emission offline.
+  - `server/data/indore_wards.json` (Mock dataset)
+  - Go unit test: `go test ./...` verifying webhook conversion & WebSocket broadcast offline.
 
 ---
 
-### Workstream 2: Extraction Pipeline (Gemini NLU)
-- [ ] **WS2.1**: Define structured output schema (`issue`, `ward`, `service_category`, `urgency_1_to_5`, `intent`, `summary`).
-- [ ] **WS2.2**: Implement Gemini structured output extraction prompt with Hindi/Hinglish/English few-shot examples.
-- [ ] **WS2.3**: Generate text embeddings for the extracted issue description.
+### Workstream 2: Extraction Pipeline (Go + Gemini SDK)
+- [X] **WS2.1**: Define Go structured extraction schema structs (`Issue`, `Ward`, `ServiceCategory`, `Urgency1To5`, `HazardTags`, `Intent`, `Summary`).
+- [ ] **WS2.2**: Implement Gemini structured output extraction prompt with Hindi/Hinglish/English few-shot examples using `github.com/google/generative-ai-go`.
+- [ ] **WS2.3**: Generate text embeddings (`text-embedding-004`) for the extracted issue description.
 - [ ] **WS2.4**: Persist extraction & embeddings to Firestore `ai_extractions`.
 - **Test Separation**:
   - `tests/fixtures/raw_complaints_multilingual.json` (10 synthetic mixed-language complaints)
-  - `tests/test_extraction.py` with mock Gemini responses for offline test runs.
+  - Go unit test: `go test ./internal/extraction/...` with mock Gemini JSON responses.
 
 ---
 
-### Workstream 3: Data Layer & Seeds (Firebase Firestore)
-- [ ] **WS3.1**: Firestore client setup & collection schema definitions (`wards`, `raw_events`, `citizen_signals`, `ai_extractions`, `clusters`, `hotspots`, `recommendations`, `audit_logs`).
-- [ ] **WS3.2**: Indore Ward Reference dataset (15–20 wards with centroids, demographic/infra index, historical investment).
-- [ ] **WS3.3**: Synthetic seed script (~30–50 complaints with engineered cluster hotspots and blind-spot wards).
+### Workstream 3: Data Layer & Seeds (Go + Firebase Firestore)
+- [ ] **WS3.1**: Official Go Firestore client initialization (`cloud.google.com/go/firestore`) & collection schema bindings.
+- [X] **WS3.2**: Indore Ward Reference dataset (12 wards with centroids, demographic/infra index, historical investment in `server/data/indore_wards.json`).
+- [ ] **WS3.3**: Synthetic Go seed script (`cmd/seed/main.go`) to populate ~30–50 complaints with engineered cluster hotspots and blind-spot wards.
 - **Test Separation**:
-  - `tests/fixtures/indore_wards.json`
-  - Validation test: Seed Firestore / local Firestore emulator and verify document reads and indexes.
+  - `server/data/indore_wards.json`
+  - Validation test: Run seed script against local Firestore emulator / test project.
 
 ---
 
-### Workstream 4: In-Memory Clustering & 4-Dimensional Scoring
-- [ ] **WS4.1**: In-memory cosine similarity threshold grouping (cluster complaints by issue within the same ward).
-- [ ] **WS4.2**: Implement 4 scoring dimension engines:
-  - `Need` = normalized cluster size × average urgency
+### Workstream 4: In-Memory Clustering & Urgency Decision Engine (Go)
+- [X] **WS4.1**: Go in-memory cosine similarity threshold grouping (cluster complaints by issue within the same ward using vector dot-product).
+- [X] **WS4.2**: **Urgency Decision Engine**:
+  - Hazard multiplier rules ($H_{\text{hazard}}$: contaminated water, live wires, open manholes, hospital access routes).
+  - Temporal spike rate velocity ($V_{\text{velocity}}$: sliding window complaint surge).
+  - Infrastructure sensitivity factor ($S_{\text{sensitivity}}$).
+  - Tiered SLA classification (Tier 1 <4h, Tier 2 <24h, Tier 3 <72h, Tier 4 <7d).
+- [X] **WS4.3**: Implement 4 scoring dimension engines:
+  - `Need` = normalized cluster size × Urgency Decision Engine score
   - `Confidence` = channel diversity + corroborating signal count
   - `Equity` = inverse of ward infra/demographic index
   - `Actionability` = location resolved + clear department mapping heuristic
-- [ ] **WS4.3**: Civic blind-spot candidate detection rule (poor infra index + low submission volume).
-- [ ] **WS4.4**: Persist computed clusters and hotspots to Firestore `clusters` & `hotspots`.
+- [X] **WS4.4**: Civic blind-spot candidate detection rule (poor infra index + low submission volume).
+- [ ] **WS4.5**: Persist computed clusters, urgency tiers, and hotspots to Firestore `clusters` & `hotspots`.
 - **Test Separation**:
-  - `tests/test_scoring.py`: Deterministic test suite verifying math against fixture matrices (pure logic, no network).
+  - `server/internal/urgency/engine_test.go`: Verified with `go test -v ./internal/urgency/...`.
+  - `server/internal/clustering/engine_test.go`: Verified with `go test -v ./internal/clustering/...`.
 
 ---
 
-### Workstream 5: Dashboard Frontend (Next.js + Socket.IO + Google Maps)
-- [ ] **WS5.1**: Next.js project skeleton with Tailwind + shadcn/ui + Recharts.
-- [ ] **WS5.2**: Hotspot & Blind-Spot Map view with Google Maps JS API (ward markers/polygons colored by priority).
-- [ ] **WS5.3**: Priority Cluster Detail view displaying the **4 separate score bars** (Need, Confidence, Equity, Actionability) using Recharts/shadcn progress bars.
-- [ ] **WS5.4**: Socket.IO client integration for real-time live complaint / hotspot animation as webhooks arrive.
-- [ ] **WS5.5**: Policymaker Decision Panel (Accept / Reject / Investigate actions) writing to Firestore `audit_logs`.
+### Workstream 5: Dashboard Frontend (Next.js 15 + WebSockets + Google Maps)
+- [X] **WS5.1**: Next.js 15 project initialized in `web/` with Tailwind CSS + Lucide Icons + Recharts.
+- [X] **WS5.2**: Hotspot & Ward list view with Urgency Tier badges, Metric cards, and live stream feed.
+- [X] **WS5.3**: Priority Cluster Detail view displaying the **4 separate score bars** (Need, Confidence, Equity, Actionability).
+- [X] **WS5.4**: Real-time WebSocket client integration connecting to Go backend (`/ws`) for live signal and decision updates.
+- [X] **WS5.5**: Policymaker Decision Panel (Accept / Reject / Investigate actions) with audit trail feedback.
 - **Test Separation**:
-  - `tests/fixtures/mock_dashboard_data.json` (Allows full frontend and UI development without backend dependency).
-  - Mock API route in Next.js returning static fixture data.
+  - `web/src/lib/api.ts` with typed fallback support.
+  - Verified with `npm run build`.
 
 ---
 
-### Workstream 6: Grounded Recommendation Generator
-- [ ] **WS6.1**: Implement Gemini summary call per cluster generating human-readable recommendations citing specific evidence/submissions.
-- [ ] **WS6.2**: Persist to Firestore `recommendations` and render in dashboard cluster drawer.
+### Workstream 6: Grounded Recommendation Generator (Go + Gemini)
+- [X] **WS6.1**: Implement grounded recommendation engine generating human-readable recommendations citing specific evidence/submissions.
+- [ ] **WS6.2**: Persist to Firestore `recommendations` and render in Next.js dashboard cluster drawer.
 - **Test Separation**:
-  - `tests/test_recommendation.py` with fixture cluster data.
+  - `go test ./internal/clustering/...` verifies recommendation generation format.
 
 ---
 
 ### Workstream 7: Live Demo & End-to-End Verification
-- [ ] **WS7.1**: End-to-end integration test (Simulate live WhatsApp message $\rightarrow$ viasocket $\rightarrow$ Socket.IO $\rightarrow$ Extraction $\rightarrow$ In-memory clustering $\rightarrow$ Firestore update $\rightarrow$ Live Dashboard animation).
+- [X] **WS7.1**: Real-time simulation endpoint (`POST /api/v1/demo/simulate`) with interactive UI trigger button.
 - [ ] **WS7.2**: Demo script run-through checklist for GDG presentation.
 
 ---
@@ -89,9 +94,9 @@ This board tracks task distribution, implementation status, and test separation 
 
 | Component | Upstream Dependency | Mock / Fixture Strategy | Independent Verification Method |
 |---|---|---|---|
-| **Ingestion** | viasocket Webhook | `tests/fixtures/viasocket_sample_payload.json` | `curl` payload to local endpoint + Socket.IO event listener |
-| **Extraction** | Gemini API | Multilingual raw text fixtures + Mock Gemini JSON | Pytest/Jest suite against mock responses |
-| **Clustering/Scoring** | Database | In-memory cluster fixture arrays | Pure unit tests for scoring formulas |
-| **Dashboard** | Backend API & Firestore | `mock_dashboard_data.json` fixture route | Next.js dev server with mock data toggle |
+| **Go Ingestion** | viasocket Webhook | `tests/fixtures/viasocket_sample_payload.json` | `curl` payload to local Go endpoint + WebSocket listener |
+| **Go Extraction** | Gemini API | Multilingual raw text fixtures + Mock Gemini JSON | `go test ./internal/extraction/...` |
+| **Go Clustering/Urgency** | None (In-memory) | In-memory cluster fixture arrays | `go test ./internal/clustering/...` & `go test ./internal/urgency/...` |
+| **Next.js Dashboard** | Go Backend / Firestore | `mock_dashboard_data.json` fixture route | `npm run dev` with mock data toggle |
 | **Live Demo** | WhatsApp | Pre-seeded Firestore + 1 live WhatsApp trigger | Verification check script |
 

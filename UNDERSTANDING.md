@@ -25,16 +25,16 @@ An AI-assisted platform that sits *behind* existing citizen channels (no new app
 
 | Layer | Choice |
 |---|---|
-| Channel intake & Realtime | **viasocket** (webhook intake/orchestration) + **Socket.IO** (real-time event streaming between gateway, processing & dashboard) |
-| Compute / Backend | **Cloud Run / Next.js API Routes** (ingestion, processing, WebSocket server, dashboard) |
-| AI/NLU (multilingual extraction, embeddings, summaries) | **Gemini** (via Vertex AI / Gemini API), structured output mode |
-| Data store | **Firebase Firestore** (Mandeep's collections approach: `raw_events`, `citizen_signals`, `ai_extractions`, `clusters`, `hotspots`, `recommendations`, `audit_logs`) |
+| Channel intake & Realtime | **viasocket** (webhook intake/orchestration) + **Socket.IO / WebSockets** (real-time event streaming between Go gateway & Next.js dashboard) |
+| Compute / Backend Engine | **Golang (Go)** (Gin/Chi HTTP framework, Gorilla/go-socket.io WebSockets, official Google Cloud Go SDKs for Gemini & Firestore on Cloud Run) |
+| AI/NLU (multilingual extraction, embeddings, summaries) | **Gemini 2.5 Flash** (via `github.com/google/generative-ai-go` / Vertex AI Go SDK), structured output mode & `text-embedding-004` |
+| Data store | **Firebase Firestore** (via official `cloud.google.com/go/firestore` Go SDK, Mandeep's 7 collections approach) |
 | Maps/visualization | **Google Maps Platform** (JS API for the hotspot map) |
-| Frontend | Next.js + Tailwind + shadcn/ui + Recharts on Cloud Run / Firebase Hosting |
+| Frontend Dashboard | **Next.js 15 (TypeScript)** + Tailwind CSS + shadcn/ui + Recharts |
 
 ### Pitch Doc vs. Hackathon Build Scope
 - **Pitch Doc (`mandeep.md`)**: Preserves the complete long-term architecture diagram with full multi-modal pipelines (Voice STT, Email OCR, WhatsApp Image OCR, Citizen Portal, Pub/Sub Event Bus).
-- **Hackathon Build Scope**: Focuses on text/voice-note WhatsApp intake via viasocket + Socket.IO, Gemini structured extraction, Firestore collections, and Next.js policymaker dashboard. Cut for demo: live telephony, manual email OCR, Firebase Auth, live geocoding API calls.
+- **Hackathon Build Scope**: Focuses on text/voice-note WhatsApp intake via viasocket + Go Socket.IO/WebSocket server, Gemini structured extraction in Go, Firestore collections, and Next.js policymaker dashboard. Cut for demo: live telephony, manual email OCR, Firebase Auth, live geocoding API calls.
 
 ## Data model essentials (Firestore Collections)
 
@@ -57,9 +57,31 @@ Following Mandeep's data architecture, Firestore stores state across separate co
 
 Gemini embeddings on the extracted issue text $\rightarrow$ in-memory cosine similarity threshold grouping (constrained to the same ward, since similar complaints in different wards are distinct issues) $\rightarrow$ write computed clusters and hotspots directly to Firestore. Simple, fast, and eliminates heavy external vector DB dependencies during hackathon execution.
 
+## Urgency Decision Engine
+
+The Urgency Decision Engine dynamically computes an actionable urgency score and assigns a response SLA tier based on multi-factor civic signals:
+
+### 1. Multi-Factor Scoring Model
+$$\text{Urgency Score (0–100)} = \min\left(100, \, (\bar{U}_{\text{base}} \times 20) \times H_{\text{hazard}} \times (1 + \alpha \cdot V_{\text{velocity}}) \times S_{\text{sensitivity}}\right)$$
+
+- **$\bar{U}_{\text{base}}$ (Base Urgency)**: Average urgency rating (1–5) extracted by Gemini from citizen reports.
+- **$H_{\text{hazard}}$ (Hazard Multiplier, 1.0–2.0x)**: High-risk civic categories (e.g., contaminated drinking water, exposed live electrical wire, open manhole, hospital emergency route blocked $\rightarrow 1.8\times–2.0\times$).
+- **$V_{\text{velocity}}$ (Temporal Spike Rate)**: Rate of incoming complaints within a sliding window (e.g., $>5$ complaints in $<2$ hours indicates an active emergency burst).
+- **$S_{\text{sensitivity}}$ (Infrastructure Sensitivity, 1.0–1.3x)**: Proximity to critical facilities (hospitals, schools, major transit intersections, flood-prone zones).
+
+### 2. Tiered Urgency Classification & SLAs
+| Tier | Score Range | Label | Recommended SLA | Dashboard Action / Indicator |
+|---|---|---|---|---|
+| **Tier 1** | 80–100 | **Critical Emergency** | **< 4 Hours** | Red pulsing banner, top of priority queue, emergency dispatch recommendation |
+| **Tier 2** | 60–79 | **High Urgency** | **< 24 Hours** | Orange badge, high-priority queue placement |
+| **Tier 3** | 35–59 | **Medium Priority** | **< 72 Hours** | Yellow badge, standard department routing |
+| **Tier 4** | 0–34 | **Routine Maintenance** | **< 7 Days** | Green badge, scheduled municipal maintenance |
+
+---
+
 ## Scoring — four dimensions (defined here since the original deck named them but never specified the math)
 
-- **Need** = normalized cluster size × average urgency (urgency comes from Gemini's extraction per submission)
+- **Need** = normalized cluster size × Urgency Decision Engine score (0–1)
 - **Confidence** = corroboration strength — number of distinct channels + evidence types backing the cluster, normalized
 - **Equity** = inverse of the ward's socioeconomic/infra index — a poor, underserved ward scores higher here even with fewer raw complaints
 - **Actionability** = heuristic completeness check — is location resolved? is affected service mapped to a single clear department? (simple boolean/percentage, not ML)
@@ -73,8 +95,8 @@ Blind spots use a plain rule: ward has a poor infra/demographic index but submis
 1. **Ingestion & Realtime** — viasocket webhook + Socket.IO real-time event pipeline $\rightarrow$ Canonical Citizen Signal $\rightarrow$ write to Firestore `raw_events` & `citizen_signals`
 2. **Extraction** — Gemini structured output (issue, ward, service, urgency, intent) + embeddings per submission $\rightarrow$ write to `ai_extractions`
 3. **Data layer + seed** — Firestore collections setup, ward CSV, seed script (~30-50 complaints)
-4. **Clustering + scoring** — In-memory cosine threshold clustering per ward + 4-dimension scoring engine + blind spot detection $\rightarrow$ write to `clusters` & `hotspots`
-5. **Dashboard** — Next.js + Tailwind + shadcn/ui + Recharts: Google Maps + priority queue + 4 score bars + human decision action buttons + `audit_logs`
+4. **Clustering & Urgency Decision Engine** — In-memory cosine threshold clustering + multi-factor Urgency Decision Engine + 4-dimension scoring engine + blind spot detection $\rightarrow$ write to `clusters` & `hotspots`
+5. **Dashboard** — Next.js + Tailwind + shadcn/ui + Recharts: Google Maps + priority queue + Urgency Tier badges + 4 score bars + human decision action buttons + `audit_logs`
 6. **Recommendation text** — Gemini grounded summary citing evidence $\rightarrow$ write to `recommendations`
 
 Status as of this writing: **Architecture & Stack Aligned** — ready for implementation.

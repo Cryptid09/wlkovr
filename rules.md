@@ -70,8 +70,9 @@ Every AI agent/model MUST follow this lifecycle on every invocation:
 
 ## 4. Locked Decisions — Do Not Relitigate Without Explicit Instruction
 
-- **Google Tech Stack**: Google technologies wherever a genuine choice exists (Gemini via Vertex AI/Gemini API, Cloud Run, Firebase Firestore, Google Maps JS API).
-- **viasocket + Socket.IO**: viasocket handles webhook ingestion from WhatsApp/SMS channels; Socket.IO streams events in real-time across services and to the dashboard.
+- **Core Tech Stack**: **Golang (Go)** for Backend Engine (Ingestion, Gemini AI pipelines, In-memory clustering, Urgency Engine, and Firestore) + **Next.js 15 (TypeScript)** for Frontend Dashboard.
+- **Google Tech Stack**: Google technologies wherever a genuine choice exists (Gemini 2.5 Flash via official Go SDK, Cloud Run, Firebase Firestore, Google Maps JS API).
+- **viasocket + WebSockets/Socket.IO**: viasocket handles webhook ingestion from WhatsApp/SMS channels; Go WebSocket/Socket.IO server streams events in real-time to the Next.js dashboard.
 - **Data Store**: **Firebase Firestore** using Mandeep's collection architecture (`raw_events`, `citizen_signals`, `ai_extractions`, `clusters`, `hotspots`, `recommendations`, `audit_logs`).
 - **Human-in-the-loop (Recommend, Never Auto-Decide)**: No auto-approval, auto-allocation of funds, or auto-closure of reports. Recommendations only.
 - **Transparent 4-Dimensional Scoring**: Need, confidence, equity, and actionability must always remain separate visible scores/bars, never collapsed into a single opaque number.

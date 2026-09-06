@@ -1,0 +1,57 @@
+package config
+
+import (
+	"log"
+	"os"
+	"strings"
+
+	"github.com/joho/godotenv"
+)
+
+// Config holds all server configuration parameters
+type Config struct {
+	Port                   string
+	Env                    string
+	AllowedOrigins         []string
+	GeminiAPIKey           string
+	GeminiModel            string
+	EmbeddingModel         string
+	GoogleCloudProject     string
+	FirestoreEmulatorHost  string
+	ViasocketWebhookSecret string
+}
+
+// LoadConfig loads configuration from .env and environment variables
+func LoadConfig() *Config {
+	// Try loading from .env in server directory or root directory
+	if err := godotenv.Load(".env"); err != nil {
+		if err := godotenv.Load("../.env"); err != nil {
+			log.Println("[CONFIG] No .env file found, using system environment variables")
+		}
+	}
+
+	origins := getEnv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+	allowedOrigins := strings.Split(origins, ",")
+	for i := range allowedOrigins {
+		allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
+	}
+
+	return &Config{
+		Port:                   getEnv("PORT", "8080"),
+		Env:                    getEnv("ENV", "development"),
+		AllowedOrigins:         allowedOrigins,
+		GeminiAPIKey:           getEnv("GEMINI_API_KEY", ""),
+		GeminiModel:            getEnv("GEMINI_MODEL", "gemini-2.5-flash"),
+		EmbeddingModel:         getEnv("EMBEDDING_MODEL", "text-embedding-004"),
+		GoogleCloudProject:     getEnv("GOOGLE_CLOUD_PROJECT", "zen-dev-intelligence"),
+		FirestoreEmulatorHost:  getEnv("FIRESTORE_EMULATOR_HOST", ""),
+		ViasocketWebhookSecret: getEnv("VIASOCKET_WEBHOOK_SECRET", "zen-secret-key-12345"),
+	}
+}
+
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		return value
+	}
+	return fallback
+}
