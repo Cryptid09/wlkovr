@@ -86,7 +86,7 @@ This board tracks task distribution, implementation status, and test separation 
 
 ### Workstream 7: Live Demo & End-to-End Verification
 - [X] **WS7.1**: Real-time simulation endpoint (`POST /api/v1/demo/simulate`) with interactive UI trigger button.
-- [ ] **WS7.2**: Demo script run-through checklist for GDG presentation.
+- [X] **WS7.2**: Demo script run-through checklist for GDG presentation (`presentation/GDG_3_MIN_DEMO_SCRIPT.md`, `scripts/test_viasocket_webhook.sh`, `docs/viasocket/VIASOCKET_SETUP_GUIDE.md`).
 
 ---
 
