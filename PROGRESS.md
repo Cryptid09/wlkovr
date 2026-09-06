@@ -35,12 +35,19 @@ This board tracks task distribution, implementation status, and test separation 
 ---
 
 ### Workstream 3: Data Layer & Seeds (Go + Firebase Firestore)
-- [ ] **WS3.1**: Official Go Firestore client initialization (`cloud.google.com/go/firestore`) & collection schema bindings.
+- [X] **WS3.1**: Official Go Firestore client initialization (`cloud.google.com/go/firestore`) & collection schema bindings. — `server/internal/db/` exposes one `Repository` contract over all 8 collections with two backends: Firestore (`firestore.go`) and a local JSON store (`local.go`). Verified: `go test ./internal/db/...`
 - [X] **WS3.2**: Indore Ward Reference dataset (12 wards with centroids, demographic/infra index, historical investment in `server/data/indore_wards.json`).
-- [ ] **WS3.3**: Synthetic Go seed script (`cmd/seed/main.go`) to populate ~30–50 complaints with engineered cluster hotspots and blind-spot wards.
+- [X] **WS3.3**: Synthetic Go seed script (`cmd/seed/`) — 42 signals: 8 (Ward 14 water) + 12 (Ward 22 road) + 6 (Ward 60 manhole) engineered hotspots, 0 in Ward 1 / Ward 78 (blind spots), 16 background noise. Verified: `go run ./cmd/seed --reset`
 - **Test Separation**:
-  - `server/data/indore_wards.json`
-  - Validation test: Run seed script against local Firestore emulator / test project.
+  - `server/data/indore_wards.json` (ward reference input)
+  - `server/data/local_store/*.json` (seeded fixture output — 8 collections, readable by any workstream without Google Cloud access)
+  - `go test ./internal/db/...` — repository round-trips against a temp-dir local store, no credentials needed.
+  - `go test ./cmd/seed/...` — corpus size, hotspot volumes, blind-spot silence, multilingual coverage, equity inversion, determinism.
+  - `go run ./cmd/seed --dry-run` — build and summarise without writing.
+
+**Backend selection**: Firestore is used when `FIRESTORE_EMULATOR_HOST` or `GOOGLE_APPLICATION_CREDENTIALS` is set; the local JSON store is used otherwise. Note `GOOGLE_CLOUD_PROJECT` always carries a default value, so it is not evidence Firestore is reachable.
+
+**Consumer note (other workstreams)**: call `db.NewRepository(ctx, cfg)` and code against the `db.Repository` interface. WS1.4 / WS2.4 / WS4.5 / WS6.2 are the wiring tasks in your own workstreams — the data layer is ready and does not require any change to `handlers.go` on my side.
 
 ---
 
@@ -56,7 +63,7 @@ This board tracks task distribution, implementation status, and test separation 
   - `Confidence` = channel diversity + corroborating signal count
   - `Equity` = inverse of ward infra/demographic index
   - `Actionability` = location resolved + clear department mapping heuristic
-- [X] **WS4.4**: Civic blind-spot candidate detection rule (poor infra index + low submission volume).
+- [X] **WS4.4**: Civic blind-spot candidate detection rule (poor infra index + **zero** active clusters). *Rule corrected 2026-09-06 by Claude Code (Track 3, authorised cross-track fix): the previous `count <= 1` threshold flagged Ward 14 and Ward 60 as blind spots while they were simultaneously the top demand hotspots. Regression test: `TestUnderservedWardWithReportsIsNotBlindSpot`.*
 - [ ] **WS4.5**: Persist computed clusters, urgency tiers, and hotspots to Firestore `clusters` & `hotspots`.
 - **Test Separation**:
   - `server/internal/urgency/engine_test.go`: Verified with `go test -v ./internal/urgency/...`.

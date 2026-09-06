@@ -96,6 +96,66 @@ This file is a persistent, chronological log of all AI agent activities across s
     - **Go Backend team**: Connect live Gemini 2.5 Flash structured output extraction (`internal/extraction/gemini.go`) and Firestore persistence (`internal/db/firestore.go`).
     - **Frontend team**: Run `npm run dev` in `web/` to customize and polish UI components, interactive Google Maps polygons, and charts.
 
+### 2026-09-06 12:35 IST - Claude Code (Track 3 — Data Layer & Seeds)
+- **Workstream / Goal**: Workstream 3 — Firestore data layer (WS3.1) and synthetic seed corpus (WS3.3)
+- **Tasks Claimed/Completed**:
+  - WS3.1 — `db.Repository` contract covering all 8 collections, with two interchangeable backends: Firestore (`cloud.google.com/go/firestore`) and a local JSON store.
+  - WS3.3 — seed command generating 42 engineered synthetic complaints and writing all 8 collections.
+- **Files Modified/Created**:
+  - `[NEW] server/internal/db/db.go` — Repository interface, collection constants, `RawEvent` / `Recommendation` types, backend-selection factory.
+  - `[NEW] server/internal/db/firestore.go` — Firestore backend (generic set/get/list helpers, emulator support, `Reset`).
+  - `[NEW] server/internal/db/local.go` — local JSON backend, atomic writes, one file per collection keyed by document ID.
+  - `[NEW] server/internal/db/db_test.go` — 10 tests, no credentials required.
+  - `[NEW] server/cmd/seed/generator.go` — engineered corpus definition + `BuildDataset`.
+  - `[NEW] server/cmd/seed/main.go` — CLI (`--reset`, `--dry-run`, `--wards`, `--local-dir`).
+  - `[NEW] server/cmd/seed/generator_test.go` — 11 tests over corpus properties.
+  - `[NEW] server/data/local_store/*.json` — seeded fixture output, 8 collections.
+  - `[MOD] PROGRESS.md` — WS3.1/WS3.3 marked complete with verification commands and a consumer note.
+- **Architectural & Design Decisions**:
+  - **Two backends behind one interface.** No `gcloud`, no `firebase` CLI, no `GOOGLE_APPLICATION_CREDENTIALS` and no emulator host exist on the dev machine, so a Firestore-only data layer would have blocked every downstream workstream. Firestore is selected when an emulator host or a credential file is configured; local JSON otherwise. Both backends store identical document shapes and list in ascending document-ID order, so switching is invisible to callers.
+  - **`GOOGLE_CLOUD_PROJECT` is not a reachability signal** — `config.LoadConfig` gives it a default value, so backend selection deliberately ignores it.
+  - **Embeddings left empty** (team decision). Seeded extractions carry every structured field except `Embedding`, which is Workstream 2's `text-embedding-004` contract to fill.
+  - **Cluster scores are computed, not hardcoded** — the seed calls the existing `urgency` and `clustering` engines rather than duplicating their formulas, so reseeding always reflects Workstream 4's current math.
+  - **Seeded `INVESTIGATING` cluster carries a matching audit-log entry**, because the platform must never move a cluster's status without a human decision behind it.
+  - **Blast radius held to new files only.** No edits to `handlers.go`, `clustering/`, `urgency/`, `extraction/`, `models/`, `config/`, `go.mod` or `web/`. The Firestore persistence tasks WS1.4 / WS2.4 / WS4.5 / WS6.2 remain with their own workstreams.
+- **Testing & Verification Conducted**:
+  - `go test ./internal/db/... ./cmd/seed/...` → PASS (21 tests).
+  - `go test ./...` → PASS, no regression in `clustering` or `urgency`.
+  - `go build ./...` and `go vet` → clean.
+  - `go run ./cmd/seed --reset` → 42 signals / 42 extractions / 42 raw events / 3 clusters / 3 hotspots / 3 recommendations / 1 audit entry / 12 wards written to `server/data/local_store/`.
+- **Blockers / Open Questions**:
+  - **Cross-track defect for Workstream 4 (not fixed here — `clustering/engine.go:110` is another track's file).** `DetectBlindSpots` flags a ward when `InfraIndex < 0.45 && activeClusterCount <= 1`. With the seeded corpus this marks **Ward 14 Chandan Nagar** (8 complaints, top hotspot) and **Ward 60 Khajrana** (6 complaints) as blind spots at the same time as they are demand hotspots — a visible contradiction on the dashboard and in the pitch. Ward 1 Banganga and Ward 78 Rau are correctly flagged. Suggested fix for whoever owns WS4.4: base the rule on citizen-signal volume (or `count == 0`) rather than `count <= 1`. Note `indore_wards.json` also ships `is_blind_spot: true` for Ward 14, but the engine recomputes the flag at runtime, so the fix belongs in the rule.
+  - Firestore backend is written but **unexercised against a real server** — nobody has provisioned a GCP project or started an emulator yet. Whoever does should run `go run ./cmd/seed --reset` with `FIRESTORE_EMULATOR_HOST` set as the first end-to-end check.
+- **Handoff / Next Recommended Steps**:
+  - Any workstream needing persistence: `repo, err := db.NewRepository(ctx, cfg)` then code against `db.Repository`. Do not construct Firestore clients directly.
+  - WS4.4 owner: decide on the blind-spot rule above.
+  - Track 1/4: seeded fixtures in `server/data/local_store/` can back the dashboard immediately without Google Cloud access.
+
+### 2026-09-06 12:42 IST - Claude Code (Track 3 — secret remediation + authorised cross-track fix)
+- **Workstream / Goal**: Remove committed secrets from a public repository; correct the WS4.4 blind-spot rule (authorised by the team lead)
+- **Tasks Claimed/Completed**:
+  - **Secret exposure closed.** `.env` was tracked and committed (`febdcd4 setup`) in a repository that `gh repo view` confirms is **PUBLIC**, with no root `.gitignore`. The committed copy had `GEMINI_API_KEY=` empty, so nothing leaked, but any teammate filling it in would have published a live key.
+  - WS4.4 blind-spot rule corrected and covered by a regression test.
+- **Files Modified/Created**:
+  - `[NEW] .gitignore` — ignores `.env*` (keeping `.env.example`), `server/data/local_store/`, Go build output, `node_modules/`, `web/.next/`, `.DS_Store`.
+  - `[DEL from index] .env`, `.DS_Store` — `git rm --cached`; both remain on disk locally.
+  - `[MOD] server/internal/clustering/engine.go` — `DetectBlindSpots` threshold `count <= 1` → `count == 0`.
+  - `[MOD] server/internal/clustering/engine_test.go` — added `TestUnderservedWardWithReportsIsNotBlindSpot`.
+  - `[MOD] PROGRESS.md` — WS4.4 annotated with the rule correction.
+- **Architectural & Design Decisions**:
+  - `server/data/local_store/` is now git-ignored rather than committed as fixtures: every reseed rewrites all 42 documents with fresh relative timestamps, which would produce a large meaningless diff on every run. Regenerate with `cd server && go run ./cmd/seed --reset`.
+  - Blind-spot semantics settled as: **a ward that has reported anything is visible to us, so it cannot be a blind spot however underserved it is.** Silence is the signal, not low volume.
+- **Testing & Verification Conducted**:
+  - `go test ./...` → PASS, including Workstream 4's pre-existing `TestBlindSpotDetection`.
+  - Reseed after the fix → 3 hotspots (Wards 14, 22, 60) and 2 blind spots (Wards 1, 78) with **no overlap**; the previous contradiction is gone.
+  - `git check-ignore -v .env` → ignored; `git ls-files` → 0 tracked `.env` files.
+- **Blockers / Open Questions**:
+  - **Every teammate must recreate `.env` locally after pulling this change** (`cp .env.example .env`, then fill in keys). Git will delete their tracked copy on pull, or report a modify/delete conflict if they had edited it.
+  - The Gemini API key was transmitted through a chat session, so it should be rotated at https://aistudio.google.com/apikey once the hackathon ends.
+  - Firestore backend still unexercised against a live server (no emulator or credentials provisioned yet).
+- **Handoff / Next Recommended Steps**:
+  - Highest-value remaining work is Workstream 2: with the Gemini key now available locally, real `text-embedding-004` embeddings would make clustering *derived* rather than *declared*, which is the platform's core claim.
+
 
 
 

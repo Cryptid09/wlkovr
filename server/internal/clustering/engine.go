@@ -106,8 +106,11 @@ func (e *Engine) DetectBlindSpots(wards []models.Ward, activeClusters []models.C
 		count := wardClusterCounts[ward.ID]
 		ward.ActiveClusterCount = count
 
-		// Rule: Poor infrastructure (< 0.45) and zero/low active clusters (< 2) = Blind Spot Candidate
-		if ward.InfraIndex < 0.45 && count <= 1 {
+		// Rule: Poor infrastructure (< 0.45) and complete silence = Blind Spot Candidate.
+		// A ward that has reported anything is visible to us, so it is not a blind
+		// spot however underserved it is — otherwise an underserved ward could be
+		// shown as a demand hotspot and a blind spot at the same time.
+		if ward.InfraIndex < 0.45 && count == 0 {
 			ward.IsBlindSpot = true
 		} else {
 			ward.IsBlindSpot = false

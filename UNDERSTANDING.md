@@ -47,6 +47,8 @@ Following Mandeep's data architecture, Firestore stores state across separate co
 - `recommendations`: Grounded AI policy recommendations citing cluster evidence.
 - `audit_logs`: Policymaker human decisions (Accept / Reject / Investigate actions, timestamps, and notes).
 
+**Access layer** (`server/internal/db`): all collections are reached through one `db.Repository` interface — never by constructing a Firestore client directly. It has two interchangeable backends: **Firestore** when `FIRESTORE_EMULATOR_HOST` or `GOOGLE_APPLICATION_CREDENTIALS` is configured, and a **local JSON store** (`server/data/local_store/*.json`) otherwise, so every workstream can develop and test without Google Cloud access. Both store identical document shapes and list in ascending document-ID order. Two document types live in the `db` package rather than `models`: `RawEvent` (the untouched viasocket payload) and `Recommendation` (a grounded brief plus the signal IDs it cites).
+
 - **Seed submissions**: ~30–50 synthetic citizen submissions across those wards, deliberately constructed so:
   - 3–4 wards get 5+ submissions each, in different languages/channels/wording, describing the *same* underlying issue (proves clustering).
   - 2–3 wards get almost no submissions but score poorly on the infra/demographic index (proves blind-spot detection).
