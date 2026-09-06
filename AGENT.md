@@ -96,7 +96,11 @@ This file is a persistent, chronological log of all AI agent activities across s
     - **Go Backend team**: Connect live Gemini 2.5 Flash structured output extraction (`internal/extraction/gemini.go`) and Firestore persistence (`internal/db/firestore.go`).
     - **Frontend team**: Run `npm run dev` in `web/` to customize and polish UI components, interactive Google Maps polygons, and charts.
 
+<<<<<<< HEAD
 ### 2026-09-06 12:00 IST - Antigravity (Pair Programming Agent)
+=======
+### 2026-09-06 12:00 IST - Antigravity (Pair Programming Agent - Track 4)
+>>>>>>> origin/nidhi
 - **Workstream / Goal**: Track 4: viasocket & Live Demo Integration (Sponsor Workflow)
 - **Tasks Claimed/Completed**:
   - Aligned `server/go.mod` directive with local Go toolchain (`go 1.26.1`) for seamless offline build/test execution.
@@ -122,7 +126,10 @@ This file is a persistent, chronological log of all AI agent activities across s
 - **Handoff / Next Recommended Steps**:
   - Teammates working on Track 1 (`web/`), Track 2 (`server/internal/extraction/`), and Track 3 (`server/internal/db/`) can continue with zero merge conflicts.
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/nidhi
 ### 2026-09-06 12:05 IST - Antigravity (Pair Programming Agent - Track 2)
 - **Workstream / Goal**: Track 2 - Gemini NLU & Embeddings Pipeline (Go AI Engine)
 - **Tasks Claimed/Completed**:
@@ -132,32 +139,34 @@ This file is a persistent, chronological log of all AI agent activities across s
   - Implemented `text-embedding-004` embedding pipeline with 768-dimensional float32 vector generation and normalized deterministic fallback for offline testing.
   - Implemented Gemini evidence-grounded summary generation citing specific citizen reports and hazard points.
   - Created synthetic multilingual test fixture dataset (`server/internal/extraction/testdata/raw_complaints_multilingual.json`) with 10 real-world Hindi, Hinglish, and English complaints.
-  - Implemented unit test suite (`server/internal/extraction/gemini_test.go`) covering prompt structure, few-shot multilingual extraction, embedding dimensionality/normalization, and grounded cluster summaries.
+  - Implemented comprehensive test suite in `server/tests/` covering prompt structure, few-shot multilingual extraction, embedding dimensionality/normalization, grounded cluster summaries, and integration scenarios.
   - Maintained strict blast radius: zero files modified in `web/` (Track 1), `server/internal/db/` or `server/cmd/seed/` (Track 3), or `server/internal/api/` (Track 4).
 - **Files Modified/Created**:
   - `[NEW] server/internal/extraction/gemini.go` — Gemini 2.5 Flash structured extraction, text-embedding-004, grounded summarizer, offline fallback.
-  - `[NEW] server/internal/extraction/gemini_test.go` — Test suite for extraction, embeddings, prompts, and summaries.
   - `[NEW] server/internal/extraction/testdata/raw_complaints_multilingual.json` — 10 multilingual synthetic test fixtures.
-  - `[MOD] PROGRESS.md` — Marked WS2.2 and WS2.3 as completed with test verification notes.
-  - `[NEW] server/internal/extraction/prompt_test.go` — Test suite for few-shot prompt construction, ward catalog mapping, and markdown cleaner.
-  - `[NEW] server/internal/extraction/embedding_test.go` — Test suite for 768-dim float32 embeddings, L2-normalization, deterministic output, and cosine similarity.
-  - `[NEW] server/internal/extraction/summary_test.go` — Test suite for evidence-grounded cluster summaries, multi-channel corroboration, and hazard identification.
-  - `[NEW] server/internal/extraction/extraction_test.go` — Test suite for pure Hindi/Hinglish signal extraction, urgency/intent correlation, and ward resolution.
-  - `[NEW] server/internal/extraction/benchmark_test.go` — Performance benchmarks for extraction (234 µs/op) and embeddings (68 µs/op).
+  - `[NEW] server/tests/prompt_test.go` — Test suite for few-shot prompt construction, ward catalog mapping, and markdown cleaner.
+  - `[NEW] server/tests/embedding_test.go` — Test suite for 768-dim float32 embeddings, L2-normalization, deterministic output, and cosine similarity.
+  - `[NEW] server/tests/summary_test.go` — Test suite for evidence-grounded cluster summaries, multi-channel corroboration, and hazard identification.
+  - `[NEW] server/tests/extraction_test.go` — Test suite for pure Hindi/Hinglish signal extraction, urgency/intent correlation, and ward resolution.
+  - `[NEW] server/tests/gemini_test.go` — Test suite for multilingual test fixtures.
+  - `[NEW] server/tests/benchmark_test.go` — Performance benchmarks for extraction (241 µs/op) and embeddings (66 µs/op).
   - `[NEW] server/tests/extraction_integration_test.go` — External integration test package for end-to-end consumer verification.
+  - `[NEW] server/tests/reporter_test.go` — Formatted test result reporting test.
   - `[NEW] server/tests/fixtures/raw_complaints_multilingual.json` — Integration test fixtures matching PROGRESS.md test matrix.
+  - `[NEW] test_results_track2.md` — Detailed test execution report with inputs, expected, and actual outputs.
+  - `[NEW] USP.md` — Comprehensive Unique Selling Propositions & Value Proposition document.
   - `[MOD] PROGRESS.md` — Marked WS2.2 and WS2.3 as completed with test verification notes.
   - `[MOD] AGENT.md` — Appended Track 2 journal entry.
 - **Architectural & Design Decisions**:
   - `Extractor` client supports both live Gemini 2.5 Flash structured mode and deterministic offline rule-based fallback so tests and development never stall without an API key or when offline.
   - Fallback embeddings use FastText-style subword character 3-grams and stopword weighting mapped into L2-normalized 768-dimensional float32 vectors, preserving dot-product vector mathematics compatible with the in-memory clustering engine.
 - **Testing & Verification Conducted**:
-  - Track 2 test suite: `go test -v ./internal/extraction/...` $\rightarrow$ 100% PASS across all 5 test files.
-  - Integration test suite: `go test -v ./tests/...` $\rightarrow$ 100% PASS.
-  - Benchmarks: `go test -bench=. ./internal/extraction` $\rightarrow$ Extraction throughput > 4,200 ops/sec, embedding throughput > 14,000 ops/sec.
-  - Full server test suite: `go test -v ./...` $\rightarrow$ 100% PASS across `internal/extraction`, `internal/clustering`, and `internal/urgency`.
+  - Track 2 test suite in `server/tests/`: `go test -v ./tests/...` $\rightarrow$ 100% PASS across all test files.
+  - Benchmarks: `go test -bench=. ./tests` $\rightarrow$ Extraction throughput > 4,100 ops/sec, embedding throughput > 15,000 ops/sec.
+  - Full server test suite: `go test -v ./...` $\rightarrow$ 100% PASS across `internal/extraction`, `internal/api`, `internal/clustering`, and `internal/urgency`.
 - **Handoff / Next Recommended Steps**:
   - Teammate on Track 3 (Firestore Data Layer) can persist `models.AIExtraction` and its embeddings to Firestore `ai_extractions`.
+<<<<<<< HEAD
   - When Track 4 (viasocket webhook) is ready, it can instantiate `extraction.NewExtractor` to enrich incoming signals and feed them to `clustering.Engine`.
 
 
@@ -221,6 +230,9 @@ This file is a persistent, chronological log of all AI agent activities across s
   - Firestore backend still unexercised against a live server (no emulator or credentials provisioned yet).
 - **Handoff / Next Recommended Steps**:
   - Highest-value remaining work is Workstream 2: with the Gemini key now available locally, real `text-embedding-004` embeddings would make clustering *derived* rather than *declared*, which is the platform's core claim.
+=======
+  - Track 4 (viasocket webhook) connects smoothly to `extraction.NewExtractor` to enrich incoming signals and feed them to `clustering.Engine`.
+>>>>>>> origin/nidhi
 
 
 
@@ -328,3 +340,80 @@ This file is a persistent, chronological log of all AI agent activities across s
   - The Gemini API key in `.env` should be rotated after the hackathon.
 - **Handoff / Next Recommended Steps**:
   - Remaining: Google Maps API key, and a real viasocket flow pointed at `/api/v1/webhooks/viasocket`.
+
+### 2026-09-06 14:55 IST - Claude Code (full system integration)
+- **Workstream / Goal**: Integrate mandeep's frontend with the backend and verify the whole system live
+- **Tasks Claimed/Completed**:
+  - Reconciled the diverged masters: local `master` (nidhi's docs + `USP.md`) with `origin/master` (PR #4, mandeep's frontend). Clean merge, no conflicts.
+  - Wired the missing live path: the dashboard handled `SIGNAL_RECEIVED` and `DECISION_RECORDED` but **not `CLUSTER_UPDATED`**, so a live message appeared in the feed while the cluster it joined never rescored on screen.
+  - Fixed the frontend build: leaflet/react-leaflet were in `package.json` but not installed, and `globals.css` imported `leaflet/dist/leaflet.css` as a bare specifier, which Tailwind v4's PostCSS cannot resolve.
+- **Files Modified/Created**:
+  - `[MOD] web/src/components/dashboard.tsx` — `CLUSTER_UPDATED` handler: replaces the cluster in state, keeps the selected cluster in sync, appends it if not already present, and raises a notice.
+  - `[MOD] web/src/app/layout.tsx`, `[MOD] web/src/app/globals.css` — leaflet stylesheet moved to a JS import, which Next resolves from node_modules.
+  - `[MOD] UNDERSTANDING.md` — maps row corrected to Leaflet/OpenStreetMap; status updated.
+- **Architectural & Design Decisions**:
+  - **The map is Leaflet + OpenStreetMap, not Google Maps Platform.** No Maps API key was ever provisioned and Leaflet needs none. `UNDERSTANDING.md` now records this, and the pitch must not claim Google Maps — the deck and any slide listing Google technologies need the same correction.
+  - `CLUSTER_UPDATED` appends an unseen cluster rather than dropping it, so a cluster formed after page load still appears without a refresh.
+- **Testing & Verification Conducted**:
+  - Backend: `go build`, `go vet`, `go test ./...` → PASS. Frontend: `npm run build` → 7 routes compiled.
+  - Live end-to-end with both servers running against Firestore and Gemini: a WebSocket client subscribed exactly as the dashboard does, then a Hinglish WhatsApp complaint was posted to `/api/v1/webhooks/viasocket`. Received in order: `SIGNAL_RECEIVED` (instant) → `SIGNAL_EXTRACTED` ("Sewage Contamination in Drinking Water Line" → indore-ward-02 / Water Supply & Sewerage) → `CLUSTER_UPDATED` (9 → 10 signals, need 97 → 100, TIER_1_CRITICAL).
+  - Confirmed every field the map and score components read is present in `/clusters` and `/wards`.
+- **Blockers / Open Questions**:
+  - The dashboard was not visually inspected in a browser — verification was at the API and WebSocket level. Someone should open http://localhost:3000 and confirm the map, markers and score bars render.
+  - `/api/v1/webhooks/viasocket` is unauthenticated: `VIASOCKET_WEBHOOK_SECRET` is loaded by config but no handler checks it. Matters once the endpoint is tunnelled publicly for the demo.
+- **Handoff / Next Recommended Steps**:
+  - `cd server && go run ./cmd/api` and `cd web && npm run dev`, then `POST /api/v1/demo/simulate` to fire the live sequence on stage.
+
+### 2026-09-06 15:05 IST - Claude Code (documentation accuracy sweep)
+- **Workstream / Goal**: Bring judge-facing claims in line with what was actually built
+- **Tasks Claimed/Completed**:
+  - Audited every markdown doc for technology claims a judge could disprove by reading the repo, and corrected them.
+- **Files Modified/Created**:
+  - `[MOD] USP.md` — embedding model and dimensions, similarity threshold, map technology, ward count, fallback description, throughput claim, and two wrong file paths.
+  - `[MOD] mandeep.md` — tech stack table said the backend was "Next.js API" (it is Go) and maps were Google Maps (they are Leaflet).
+  - `[MOD] PROGRESS.md`, `[MOD] rules.md`, `[MOD] UNDERSTANDING.md` — map technology and remaining-work list.
+- **Corrections made** (claim → reality):
+  - `text-embedding-004`, 768-dim → `gemini-embedding-001`, 3072-dim (three places).
+  - "FastText subword 3-gram" fallback → a deterministic SHA-256 hash of tokens and n-grams. It is not FastText and carries no semantics; USP.md now says clustering falls back to ward/department matching while it is in use.
+  - Cosine threshold "≥ 0.70" → mean cosine ≥ 0.75, with the measured separation quoted.
+  - "85-Ward Interactive Map (Google Maps Polygons)" → Leaflet + OpenStreetMap markers, 12 wards seeded.
+  - "Backend: Next.js API" → Golang (Gin).
+  - "4,100 extractions per second" stated flatly → qualified as offline-mode throughput, since a live Gemini call is network-bound and takes seconds. The 2.58 ms figure is the ingestion and broadcast path and is accurate.
+  - `server/internal/api/hub.go` → `websocket.go`; `web/components/` → `web/src/components/`.
+- **Architectural & Design Decisions**:
+  - `AGENT.md` history left untouched — it is append-only and those entries were accurate when written. Only forward-looking and judge-facing claims were corrected.
+  - `mandeep.md`'s enrichment section still lists Google Maps as a future data source; that is roadmap, not a build claim, so it stands.
+- **Testing & Verification Conducted**:
+  - `go build`, `go vet`, `go test ./...` → PASS. `npm run build` → 7 routes compiled.
+- **Blockers / Open Questions**:
+  - The pitch deck PDF (`Zen_ Build with ai Hackathon.pdf`) still lists **Google Maps Platform** under "Google Technologies used in the solution". It is a binary and cannot be edited here — someone must fix that slide or drop the line.
+
+### 2026-09-06 15:20 IST - Claude Code (end-to-end system integration)
+- **Workstream / Goal**: Make the whole application work end to end: real data in the UI, authenticated public ingestion, live viasocket path
+- **Tasks Claimed/Completed**:
+  - **The dashboard was never showing backend data.** `web/src/lib/api.ts` had `USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_DATA !== "false"`, and the variable was unset, so it evaluated true and every fetch returned hardcoded mocks. Only the WebSocket was live. Live data is now the default and mocks are opt-in.
+  - Added shared-secret authentication to `POST /api/v1/webhooks/viasocket` and exposed the backend publicly via a cloudflared tunnel.
+  - **Fixed a second dead model.** `gemini-2.5-flash` now returns 404 "no longer available to new users"; Google's error names `gemini-3.6-flash` as the replacement. Updated everywhere.
+  - Deduplicated urgency explainability factors.
+- **Files Modified/Created**:
+  - `[MOD] web/src/lib/api.ts`, `[MOD] web/.env.local`, `[MOD] web/.env.example` — live data by default; on fetch failure return empty rather than silently substituting fabricated clusters.
+  - `[NEW] server/internal/api/middleware.go` — `RequireWebhookSecret`, constant-time comparison, disabled when no secret is configured.
+  - `[NEW] server/internal/api/middleware_test.go` — 5 tests: missing/wrong/correct secret, open when unconfigured, and that dashboard endpoints stay ungated.
+  - `[MOD] server/internal/api/router.go` — webhook route gated.
+  - `[MOD] server/internal/urgency/engine.go` + test — `dedupe` on factors.
+  - `[MOD] .env`, `.env.example`, `config/config.go`, `extraction/gemini.go`, and all docs — `gemini-3.6-flash`.
+  - `[MOD] docs/viasocket/VIASOCKET_SETUP_GUIDE.md` — documents the required header and cloudflared.
+- **Architectural & Design Decisions**:
+  - **Mock data must be opt-in.** A demo silently falling back to fabricated clusters that look plausible is worse than showing nothing, so a failed fetch now returns empty and logs an error unless mocks were explicitly requested.
+  - **The webhook secret is the minimum bar, not request signing.** It stops casual injection through a public tunnel; it is not HMAC verification.
+  - Pinned `gemini-3.6-flash` rather than the `gemini-flash-latest` alias, so behaviour is reproducible. Two pinned models have now died mid-build, so re-run the probe if extraction starts degrading.
+- **Testing & Verification Conducted**:
+  - `go build`, `go vet`, `go test ./...` → PASS. `npm run build` → 7 routes.
+  - Live through the public tunnel: unauthenticated POST → 401 (logged with client IP); authenticated POST → 200 → Gemini 3.6 extraction with no degradation → joined `cluster-indore-002`, 12 → 13 signals, Tier 1 held.
+  - Earlier run confirmed the browser is rendering live data: the dev server logged a React key collision on `Drinking water contamination / sewage mixing`, a factor string produced by the backend that appears nowhere in the mock file. That collision is what surfaced the duplicate-factor bug, now fixed.
+  - Explainability factors verified unique; API serves need=94 for cluster-001 where the mock said 96.
+- **Blockers / Open Questions**:
+  - cloudflared quick tunnels get a **new random URL on every restart**, so the viasocket flow's HTTP action must be updated each time the tunnel restarts. A named tunnel needs a Cloudflare account.
+  - The dashboard still has not been visually inspected in a browser.
+- **Handoff / Next Recommended Steps**:
+  - Paste the current tunnel URL + `/api/v1/webhooks/viasocket` into the viasocket flow's HTTP action, with header `X-Webhook-Secret`.

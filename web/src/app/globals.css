@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "leaflet/dist/leaflet.css";
 
 /* Keep the command shell focused on navigation and live status. */
 aside > button {

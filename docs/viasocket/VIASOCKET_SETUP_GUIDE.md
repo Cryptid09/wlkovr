@@ -80,6 +80,10 @@ function formatPayload(context) {
 ### Step 4: Add HTTP Request Action (Forward to Backend)
 1. Select **HTTP Request / API Step**.
 2. **Method**: `POST`
+2a. **Required header**: `X-Webhook-Secret: <value of VIASOCKET_WEBHOOK_SECRET>`
+    The ingestion endpoint is public once tunnelled, so it rejects any request
+    without this header with HTTP 401. Add it as a custom header on the flow's
+    HTTP action.
 3. **URL**:
    - Local Dev with Tunnel: `https://<your-ngrok-or-localtunnel-subdomain>/api/v1/webhooks/viasocket`
    - Cloud Run: `https://civic-engine-<project-id>.a.run.app/api/v1/webhooks/viasocket`
@@ -112,7 +116,8 @@ To receive live webhooks on your local workstation during the demo presentation:
 
 1. Launch Ngrok or Cloudflare Tunnel:
    ```bash
-   ngrok http 8080
+   cloudflared tunnel --url http://localhost:8080   # no account needed
+   # (or: ngrok http 8080)
    ```
 2. Copy the forwarding HTTPS address (e.g. `https://abc-123.ngrok-free.app`).
 3. Update the HTTP URL in viasocket flow to:

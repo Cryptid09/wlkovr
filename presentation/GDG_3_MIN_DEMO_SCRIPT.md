@@ -53,7 +53,7 @@ Watch the screen..."
 
 **Speaker**:  
 "Now, what happens under the hood?
-1. **Gemini 2.5 Flash** performs structured extraction on mixed Hindi/English text — identifying the exact issue (*Sewage Contamination*), ward, and department (*Water Supply & Sewerage*).
+1. **Gemini 3.6 Flash** performs structured extraction on mixed Hindi/English text — identifying the exact issue (*Sewage Contamination*), ward, and department (*Water Supply & Sewerage*).
 2. Gemini embeddings cluster 8 separate citizen submissions into **one unified actionable hotspot**.
 3. Our **Urgency Decision Engine** dynamically detects hard hazard multipliers—contaminated drinking water near a community clinic instantly escalates this to a **Tier-1 Critical Emergency (<4 hour SLA)**!
 

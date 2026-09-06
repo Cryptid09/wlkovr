@@ -41,7 +41,7 @@ func loadIntegrationFixtures(t *testing.T) []FixtureItem {
 
 func TestExtraction_EndToEndConsumerPipeline(t *testing.T) {
 	ctx := context.Background()
-	extractor, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	extractor, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize Extractor: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestExtraction_EndToEndConsumerPipeline(t *testing.T) {
 
 func TestExtraction_PromptIntegrityContract(t *testing.T) {
 	ctx := context.Background()
-	extractor, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	extractor, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize Extractor: %v", err)
 	}

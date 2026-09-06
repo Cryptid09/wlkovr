@@ -500,10 +500,10 @@ Modules
 | Component | Technology           |
 | --------- | -------------------- |
 | Frontend  | Next.js              |
-| Backend   | Next.js API          |
-| AI        | Gemini 2.5 Flash     |
+| Backend   | Golang (Gin) on Cloud Run |
+| AI        | Gemini 3.6 Flash     |
 | Database  | Firebase Firestore   |
-| Maps      | Google Maps          |
+| Maps      | Leaflet + OpenStreetMap  |
 | Charts    | Recharts             |
 | UI        | Tailwind + shadcn/ui |
 | Hosting   | Firebase / Vercel    |

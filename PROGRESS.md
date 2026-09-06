@@ -27,7 +27,7 @@ This board tracks task distribution, implementation status, and test separation 
 - [X] **WS2.1**: Define Go structured extraction schema structs (`Issue`, `Ward`, `ServiceCategory`, `Urgency1To5`, `HazardTags`, `Intent`, `Summary`).
 - [X] **WS2.2**: Implement Gemini structured output extraction prompt with Hindi/Hinglish/English few-shot examples using `github.com/google/generative-ai-go` (`server/internal/extraction/gemini.go`).
 - [X] **WS2.3**: Generate text embeddings for issue clustering with normalized deterministic fallback. **Model corrected to `gemini-embedding-001` (3072-dim)** — `text-embedding-004` returns HTTP 404 on the v1beta endpoint this SDK targets. The fallback width now tracks the configured model via `embeddingDimensions`, and `GenerateEmbedding`/`ExtractSignal` return an error when they degrade instead of passing fallbacks off as model output. Regression test: `internal/extraction/dimensions_test.go`. Backfill with `go run ./cmd/seed --reset --embed`.
-- [X] **WS2.4**: Persist extraction & embeddings to `ai_extractions`. Incoming signals run through `extraction.Extractor` (Gemini 2.5 Flash + `gemini-embedding-001`, 3072-dim) and are stored with their embedding.
+- [X] **WS2.4**: Persist extraction & embeddings to `ai_extractions`. Incoming signals run through `extraction.Extractor` (Gemini 3.6 Flash + `gemini-embedding-001`, 3072-dim) and are stored with their embedding.
 - **Test Separation**:
   - `server/internal/extraction/testdata/raw_complaints_multilingual.json` (10 synthetic mixed-language complaints)
   - Go unit test: `go test -v ./internal/extraction/...` verified 100% PASS with few-shot Hindi/Hinglish validation, normalized embeddings, and grounded summary generation.
@@ -75,7 +75,7 @@ Verified live end-to-end: a Hindi WhatsApp complaint posted to `/api/v1/webhooks
 
 ---
 
-### Workstream 5: Dashboard Frontend (Next.js 15 + WebSockets + Google Maps)
+### Workstream 5: Dashboard Frontend (Next.js 15 + WebSockets + Leaflet/OpenStreetMap)
 - [X] **WS5.1**: Next.js 15 project initialized in `web/` with Tailwind CSS + Lucide Icons + Recharts.
 - [X] **WS5.2**: Hotspot & Ward list view with Urgency Tier badges, Metric cards, and live stream feed.
 - [X] **WS5.3**: Priority Cluster Detail view displaying the **4 separate score bars** (Need, Confidence, Equity, Actionability).
