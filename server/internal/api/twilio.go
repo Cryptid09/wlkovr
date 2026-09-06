@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -160,7 +161,21 @@ func (h *Handler) sendTwilioMessage(ctx context.Context, to, body string) error 
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("twilio responded %s", resp.Status)
+		// Twilio puts the actionable reason in the body (its own error code and
+		// message). A bare status line is not enough to diagnose a failure
+		// during a demo.
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		body := strings.TrimSpace(string(detail))
+
+		// 21654 / 63016 mean WhatsApp's 24-hour session window is closed: a
+		// business may only send free-form text within 24 hours of the citizen's
+		// own message, and must use an approved template outside it. This is the
+		// expected result of replaying a synthetic webhook, since no real
+		// inbound WhatsApp message opened a window.
+		if strings.Contains(body, "21654") || strings.Contains(body, "63016") {
+			return fmt.Errorf("no open WhatsApp session with %s — the citizen must message the sandbox first, or an approved template (TWILIO_CONTENT_SID) is required outside the 24-hour window (twilio: %s)", to, body)
+		}
+		return fmt.Errorf("twilio responded %s: %s", resp.Status, body)
 	}
 	return nil
 }

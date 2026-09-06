@@ -344,7 +344,28 @@ cloudflared tunnel --url http://localhost:8080   # no account required
 Note that a cloudflared quick tunnel gets a **new URL every restart**, so the
 viasocket action must be updated whenever the tunnel is restarted.
 
-## Replying to the citizen
+## Replying to the citizen — the 24-hour session window
+
+WhatsApp only allows free-form business replies inside a **24-hour customer
+service window**, which opens when the citizen sends a message. Outside it,
+Twilio rejects the reply with:
+
+``` text
+21654 ContentSid Required
+```
+
+That is expected when replaying a synthetic webhook, because no real inbound
+WhatsApp message opened a window. During the live demo the citizen's own
+message opens the window, so the acknowledgement sends normally.
+
+The backend detects this specific failure and logs what to do rather than a raw
+API error. Ingestion is unaffected either way — the signal is still extracted,
+clustered and shown on the dashboard.
+
+To reply outside the window an approved WhatsApp template is required
+(`ContentSid`), which is not configured for this sandbox.
+
+## Configuring replies
 
 The backend sends the acknowledgement itself once extraction completes; the
 viasocket flow does not need a Twilio step. Replies require:
