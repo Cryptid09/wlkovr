@@ -114,12 +114,20 @@ export async function askAssistant(
   clusterId?: string,
   wardId?: string
 ): Promise<AssistantAnswer> {
-  const res = await fetch(`${API_BASE}/assistant`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, cluster_id: clusterId, ward_id: wardId }),
-  });
-  const json: ApiResponse<AssistantAnswer> = await res.json();
-  if (!json.success || !json.data) throw new Error(json.error || "The assistant could not answer");
-  return json.data;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`${API_BASE}/assistant`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, cluster_id: clusterId, ward_id: wardId }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Assistant request failed (${res.status})`);
+    const json: ApiResponse<AssistantAnswer> = await res.json();
+    if (!json.success || !json.data?.answer) throw new Error(json.error || "The assistant could not answer");
+    return json.data;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }

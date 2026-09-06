@@ -91,6 +91,9 @@ func payloadFromTwilio(c *gin.Context) models.ViasocketPayload {
 // citizen that work is approved or scheduled — only that their report was
 // received, understood, and grouped with corroborating reports.
 func (h *Handler) replyToCitizen(signal models.CitizenSignal, extraction *models.AIExtraction, corroborating int) {
+	if signal.Provider != models.ProviderWhatsApp {
+		return
+	}
 	if h.cfg.TwilioAccountSID == "" || h.cfg.TwilioAuthToken == "" {
 		return
 	}

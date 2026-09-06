@@ -18,7 +18,9 @@ import (
 // instructions never to recommend approval, funding or closure — those remain
 // human actions recorded through /decisions.
 
-const assistantTimeout = 25 * time.Second
+// Keep the dashboard responsive when Gemini is rate-limited or unavailable.
+// The handler always has a deterministic evidence-grounded fallback.
+const assistantTimeout = 7 * time.Second
 
 // maxEvidenceSignals bounds how many citizen reports are quoted into the
 // prompt. Enough to show multilingual corroboration, small enough to keep the

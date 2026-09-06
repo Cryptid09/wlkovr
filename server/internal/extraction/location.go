@@ -63,7 +63,7 @@ func resolveWard(message, hint, modelID, modelName string) wardResolution {
 	}
 	for _, ward := range wardCatalog {
 		if modelID == ward.ID || strings.EqualFold(strings.TrimSpace(modelName), ward.Name) {
-			return wardResolution{ward.ID, ward.Name, "model_inferred", 0.55, "Gemini selected the closest ward from the approved catalog"}
+			return wardResolution{ward.ID, ward.Name, "model_inferred", 0.55, "Sahyog-Ai selected the closest ward from the approved catalog"}
 		}
 	}
 
