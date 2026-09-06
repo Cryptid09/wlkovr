@@ -1,0 +1,58 @@
+{
+  "whatsapp_water_contamination_hindi": {
+    "event_id": "via-evt-wa-1001",
+    "provider": "WhatsApp",
+    "sender": "+91-9826012345",
+    "body": "हमारे यहाँ नल से गंदा पानी आ रहा है बहुत बदबू है चंदन नगर गली 4",
+    "timestamp": "2026-09-06T06:15:30Z",
+    "metadata": {
+      "channel": "whatsapp",
+      "flow_id": "viasocket-flow-civic-inbox-01",
+      "sender_name": "Ramesh Sharma",
+      "location_hint": "Chandan Nagar Street 4",
+      "ward_id": "indore-ward-02"
+    }
+  },
+  "whatsapp_road_cavein_hinglish": {
+    "event_id": "via-evt-wa-1002",
+    "provider": "WhatsApp",
+    "sender": "+91-9755054321",
+    "body": "Vijay Nagar square ke paas hospital approach road dhas gayi hai ambulance fas sakti hai",
+    "timestamp": "2026-09-06T06:20:00Z",
+    "metadata": {
+      "channel": "whatsapp",
+      "flow_id": "viasocket-flow-civic-inbox-01",
+      "sender_name": "Dr. Priya Verma",
+      "location_hint": "Vijay Nagar Square near Hospital",
+      "ward_id": "indore-ward-03"
+    }
+  },
+  "whatsapp_manhole_english": {
+    "event_id": "via-evt-wa-1003",
+    "provider": "WhatsApp",
+    "sender": "+91-9425098765",
+    "body": "Danger: Deep drainage manhole left uncovered near school gate in Khajrana.",
+    "timestamp": "2026-09-06T06:25:45Z",
+    "metadata": {
+      "channel": "whatsapp",
+      "flow_id": "viasocket-flow-civic-inbox-01",
+      "sender_name": "Amit Joshi",
+      "location_hint": "Khajrana Near School Gate",
+      "ward_id": "indore-ward-09"
+    }
+  },
+  "sms_live_wire_hindi": {
+    "event_id": "via-evt-sms-2001",
+    "provider": "SMS",
+    "sender": "+91-9893087654",
+    "body": "राजवाड़ा बस स्टॉप के पास बिजली का खंभा गिर गया है तार खुले पड़े हैं",
+    "timestamp": "2026-09-06T06:30:10Z",
+    "metadata": {
+      "channel": "sms",
+      "flow_id": "viasocket-flow-sms-inbox-01",
+      "sender_name": "Citizen Alert",
+      "location_hint": "Rajwada Bus Stop",
+      "ward_id": "indore-ward-01"
+    }
+  }
+}
