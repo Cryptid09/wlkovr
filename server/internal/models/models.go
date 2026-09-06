@@ -11,6 +11,7 @@ const (
 	ProviderWhatsApp ProviderType = "WhatsApp"
 	ProviderSMS      ProviderType = "SMS"
 	ProviderWeb      ProviderType = "WebPortal"
+	ProviderTelegram ProviderType = "Telegram"
 )
 
 // UrgencyTier represents the classified urgency tier
@@ -83,39 +84,39 @@ type FourDimensionalScore struct {
 
 // Cluster represents a grouped set of related citizen reports in a ward
 type Cluster struct {
-	ID                string               `json:"id" firestore:"id"`
-	WardID            string               `json:"ward_id" firestore:"ward_id"`
-	WardName          string               `json:"ward_name" firestore:"ward_name"`
-	Department        string               `json:"department" firestore:"department"`
-	Title             string               `json:"title" firestore:"title"`
-	Description       string               `json:"description" firestore:"description"`
-	SignalCount       int                  `json:"signal_count" firestore:"signal_count"`
-	SignalIDs         []string             `json:"signal_ids" firestore:"signal_ids"`
-	Channels          []string             `json:"channels" firestore:"channels"`
-	Urgency           UrgencyResult        `json:"urgency" firestore:"urgency"`
-	Scores            FourDimensionalScore `json:"scores" firestore:"scores"`
-	Recommendation    string               `json:"recommendation" firestore:"recommendation"`
-	IsBlindSpot       bool                 `json:"is_blind_spot" firestore:"is_blind_spot"`
-	Status            string               `json:"status" firestore:"status"` // PENDING, ACCEPTED, INVESTIGATING, REJECTED
-	CentroidLat       float64              `json:"centroid_lat" firestore:"centroid_lat"`
-	CentroidLng       float64              `json:"centroid_lng" firestore:"centroid_lng"`
-	CreatedAt         time.Time            `json:"created_at" firestore:"created_at"`
-	UpdatedAt         time.Time            `json:"updated_at" firestore:"updated_at"`
+	ID             string               `json:"id" firestore:"id"`
+	WardID         string               `json:"ward_id" firestore:"ward_id"`
+	WardName       string               `json:"ward_name" firestore:"ward_name"`
+	Department     string               `json:"department" firestore:"department"`
+	Title          string               `json:"title" firestore:"title"`
+	Description    string               `json:"description" firestore:"description"`
+	SignalCount    int                  `json:"signal_count" firestore:"signal_count"`
+	SignalIDs      []string             `json:"signal_ids" firestore:"signal_ids"`
+	Channels       []string             `json:"channels" firestore:"channels"`
+	Urgency        UrgencyResult        `json:"urgency" firestore:"urgency"`
+	Scores         FourDimensionalScore `json:"scores" firestore:"scores"`
+	Recommendation string               `json:"recommendation" firestore:"recommendation"`
+	IsBlindSpot    bool                 `json:"is_blind_spot" firestore:"is_blind_spot"`
+	Status         string               `json:"status" firestore:"status"` // PENDING, ACCEPTED, INVESTIGATING, REJECTED
+	CentroidLat    float64              `json:"centroid_lat" firestore:"centroid_lat"`
+	CentroidLng    float64              `json:"centroid_lng" firestore:"centroid_lng"`
+	CreatedAt      time.Time            `json:"created_at" firestore:"created_at"`
+	UpdatedAt      time.Time            `json:"updated_at" firestore:"updated_at"`
 }
 
 // Ward represents an Indore ward reference profile
 type Ward struct {
-	ID                 string    `json:"id" firestore:"id"`
-	Name               string    `json:"name" firestore:"name"`
-	Zone               string    `json:"zone" firestore:"zone"`
-	Lat                float64   `json:"lat" firestore:"lat"`
-	Lng                float64   `json:"lng" firestore:"lng"`
-	InfraIndex         float64   `json:"infra_index" firestore:"infra_index"` // 0.0 - 1.0 (Lower = worse infra/more needy)
-	Population         int       `json:"population" firestore:"population"`
-	HistoricalSpend    float64   `json:"historical_spend_cr" firestore:"historical_spend_cr"`
-	CriticalFacilities []string  `json:"critical_facilities" firestore:"critical_facilities"`
-	ActiveClusterCount int       `json:"active_cluster_count" firestore:"active_cluster_count"`
-	IsBlindSpot        bool      `json:"is_blind_spot" firestore:"is_blind_spot"`
+	ID                 string   `json:"id" firestore:"id"`
+	Name               string   `json:"name" firestore:"name"`
+	Zone               string   `json:"zone" firestore:"zone"`
+	Lat                float64  `json:"lat" firestore:"lat"`
+	Lng                float64  `json:"lng" firestore:"lng"`
+	InfraIndex         float64  `json:"infra_index" firestore:"infra_index"` // 0.0 - 1.0 (Lower = worse infra/more needy)
+	Population         int      `json:"population" firestore:"population"`
+	HistoricalSpend    float64  `json:"historical_spend_cr" firestore:"historical_spend_cr"`
+	CriticalFacilities []string `json:"critical_facilities" firestore:"critical_facilities"`
+	ActiveClusterCount int      `json:"active_cluster_count" firestore:"active_cluster_count"`
+	IsBlindSpot        bool     `json:"is_blind_spot" firestore:"is_blind_spot"`
 }
 
 // DecisionRequest is the body sent by policymakers when taking action

@@ -10,6 +10,18 @@ import (
 	"walkover/server/internal/models"
 )
 
+const TelegramSecretHeader = "X-Telegram-Bot-Api-Secret-Token"
+
+func RequireTelegramSecret(cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if cfg.TelegramWebhookSecret == "" || subtle.ConstantTimeCompare([]byte(c.GetHeader(TelegramSecretHeader)), []byte(cfg.TelegramWebhookSecret)) == 1 {
+			c.Next()
+			return
+		}
+		c.AbortWithStatusJSON(http.StatusUnauthorized, models.ApiResponse{Success: false, Error: "Unauthorized Telegram webhook"})
+	}
+}
+
 // WebhookSecretHeader is the header viasocket must send on every forwarded
 // citizen signal. Configure it as a custom header on the flow's HTTP action.
 const WebhookSecretHeader = "X-Webhook-Secret"

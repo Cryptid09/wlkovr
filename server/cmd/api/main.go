@@ -43,6 +43,10 @@ func main() {
 		}
 	}
 
+	if cfg.TelegramBotToken != "" && cfg.Env != "production" {
+		go api.StartTelegramPolling(ctx, cfg.TelegramBotToken, handler)
+	}
+
 	// 3b. Attach the Gemini extraction pipeline. It degrades to deterministic
 	// offline fallbacks when no API key is present.
 	extractor, err := extraction.NewExtractor(ctx, cfg.GeminiAPIKey, cfg.GeminiModel, cfg.EmbeddingModel)

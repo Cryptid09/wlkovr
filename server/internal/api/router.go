@@ -49,6 +49,7 @@ func SetupRouter(cfg *config.Config, handler *Handler, hub *Hub) *gin.Engine {
 		// Webhooks (viasocket WhatsApp/SMS ingestion) — publicly reachable, so
 		// it is gated by the shared secret viasocket sends as a custom header.
 		v1.POST("/webhooks/viasocket", RequireWebhookSecret(cfg), handler.HandleViasocketWebhook)
+		v1.POST("/webhooks/telegram", RequireTelegramSecret(cfg), handler.HandleTelegramWebhook)
 
 		// Policymaker Human Decision Action Panel
 		v1.POST("/decisions", handler.RecordDecision)

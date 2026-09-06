@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -349,6 +350,79 @@ func (h *Handler) HandleViasocketWebhook(c *gin.Context) {
 			"timestamp": signal.Timestamp,
 		},
 	})
+}
+
+type telegramUpdate struct {
+	UpdateID      int64            `json:"update_id"`
+	Message       *telegramMessage `json:"message"`
+	EditedMessage *telegramMessage `json:"edited_message"`
+	ChannelPost   *telegramMessage `json:"channel_post"`
+}
+type telegramMessage struct {
+	MessageID int64        `json:"message_id"`
+	Date      int64        `json:"date"`
+	Text      string       `json:"text"`
+	Caption   string       `json:"caption"`
+	From      telegramUser `json:"from"`
+	Chat      telegramChat `json:"chat"`
+}
+type telegramUser struct {
+	ID        int64  `json:"id"`
+	Username  string `json:"username"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+}
+type telegramChat struct {
+	ID    int64  `json:"id"`
+	Type  string `json:"type"`
+	Title string `json:"title"`
+}
+
+func (h *Handler) HandleTelegramWebhook(c *gin.Context) {
+	var update telegramUpdate
+	if err := c.ShouldBindJSON(&update); err != nil {
+		c.JSON(http.StatusBadRequest, models.ApiResponse{Success: false, Error: "Invalid Telegram update"})
+		return
+	}
+	signal, reason := h.ingestTelegramUpdate(update)
+	if signal == nil {
+		c.JSON(http.StatusOK, models.ApiResponse{Success: true, Message: "Telegram update ignored: " + reason})
+		return
+	}
+	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Message: "Telegram message queued", Data: gin.H{"signal_id": signal.ID, "status": "PROCESSING", "timestamp": signal.Timestamp}})
+}
+
+func (h *Handler) ingestTelegramUpdate(update telegramUpdate) (*models.CitizenSignal, string) {
+	message := update.Message
+	if message == nil {
+		message = update.EditedMessage
+	}
+	if message == nil {
+		message = update.ChannelPost
+	}
+	if message == nil {
+		return nil, "no message"
+	}
+	body := strings.TrimSpace(message.Text)
+	if body == "" {
+		body = strings.TrimSpace(message.Caption)
+	}
+	if body == "" {
+		return nil, "no text or caption"
+	}
+	senderID := message.From.ID
+	if senderID == 0 {
+		senderID = message.Chat.ID
+	}
+	receivedAt := time.Now()
+	if message.Date > 0 {
+		receivedAt = time.Unix(message.Date, 0)
+	}
+	metadata := map[string]interface{}{"telegram_update_id": update.UpdateID, "telegram_message_id": message.MessageID, "telegram_chat_id": message.Chat.ID, "telegram_chat_type": message.Chat.Type, "sender_name": strings.TrimSpace(message.From.FirstName + " " + message.From.LastName), "username": message.From.Username}
+	payload := models.ViasocketPayload{EventID: "telegram-" + strconv.FormatInt(update.UpdateID, 10), Provider: "Telegram", Sender: "telegram:" + strconv.FormatInt(senderID, 10), Body: body, Timestamp: receivedAt.UTC().Format(time.RFC3339), Metadata: metadata}
+	signal := models.CitizenSignal{ID: "sig-" + uuid.New().String()[:8], Provider: models.ProviderTelegram, RawText: body, Language: "auto-detected", SenderPhone: payload.Sender, Timestamp: receivedAt, Metadata: metadata}
+	h.ingest(signal, &payload)
+	return &signal, ""
 }
 
 // RecordDecision handles policymaker action (Accept, Reject, Investigate)

@@ -19,6 +19,8 @@ type Config struct {
 	GoogleCloudProject     string
 	FirestoreEmulatorHost  string
 	ViasocketWebhookSecret string
+	TelegramBotToken       string
+	TelegramWebhookSecret  string
 	TwilioAccountSID       string
 	TwilioAuthToken        string
 	TwilioWhatsAppFrom     string
@@ -40,13 +42,13 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		Port:                   getEnv("PORT", "8080"),
-		Env:                    getEnv("ENV", "development"),
-		AllowedOrigins:         allowedOrigins,
-		GeminiAPIKey:           getEnv("GEMINI_API_KEY", ""),
+		Port:           getEnv("PORT", "8080"),
+		Env:            getEnv("ENV", "development"),
+		AllowedOrigins: allowedOrigins,
+		GeminiAPIKey:   getEnv("GEMINI_API_KEY", ""),
 		// gemini-2.5-flash returned "no longer available to new users" mid-build;
 		// Google's own error names gemini-3.6-flash as the replacement.
-		GeminiModel:            getEnv("GEMINI_MODEL", "gemini-3.6-flash"),
+		GeminiModel: getEnv("GEMINI_MODEL", "gemini-3.6-flash"),
 		// text-embedding-004 is not served on the v1beta generativelanguage
 		// endpoint this SDK uses — it 404s. gemini-embedding-001 is the model
 		// that actually responds (3072 dimensions).
@@ -54,6 +56,8 @@ func LoadConfig() *Config {
 		GoogleCloudProject:     getEnv("GOOGLE_CLOUD_PROJECT", "zen-dev-intelligence"),
 		FirestoreEmulatorHost:  getEnv("FIRESTORE_EMULATOR_HOST", ""),
 		ViasocketWebhookSecret: getEnv("VIASOCKET_WEBHOOK_SECRET", "zen-secret-key-12345"),
+		TelegramBotToken:       getEnv("TELEGRAM_BOT_TOKEN", ""),
+		TelegramWebhookSecret:  getEnv("TELEGRAM_WEBHOOK_SECRET", ""),
 		TwilioAccountSID:       getEnv("TWILIO_ACCOUNT_SID", ""),
 		// No default: without an auth token the platform simply does not send
 		// WhatsApp replies. A placeholder would look configured and fail late.
