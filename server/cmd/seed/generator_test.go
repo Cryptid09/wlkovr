@@ -82,8 +82,12 @@ func TestBlindSpotWardsReceiveNoSignals(t *testing.T) {
 	counts := signalsByWard(dataset)
 
 	silent := []string{
-		"indore-ward-01", // Ward 1 Banganga, infra index 0.38
-		"indore-ward-12", // Ward 78 Rau, infra index 0.35
+		"indore-ward-01", // Ward 1 Banganga, infra 0.38
+		"indore-ward-12", // Ward 78 Rau, infra 0.35
+		"indore-ward-13", // Ward 6 Bhagirathpura, infra 0.29
+		"indore-ward-14", // Ward 19 Nandanagar, infra 0.36
+		"indore-ward-15", // Ward 47 Musakhedi, infra 0.41
+		"indore-ward-16", // Ward 82 Bicholi Hapsi, infra 0.33
 	}
 	for _, wardID := range silent {
 		if counts[wardID] != 0 {
@@ -101,6 +105,12 @@ func TestBlindSpotWardsReceiveNoSignals(t *testing.T) {
 		if !flagged[wardID] {
 			t.Errorf("ward %s not flagged as a blind spot, want flagged", wardID)
 		}
+	}
+
+	// A single blind spot reads as an edge case; a cluster of them is the
+	// pattern the platform exists to surface.
+	if len(flagged) < 5 {
+		t.Errorf("only %d blind spots flagged, want at least 5 for the map to show the pattern", len(flagged))
 	}
 }
 

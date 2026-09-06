@@ -133,6 +133,10 @@ Wards in Indore Reference:
 - "indore-ward-10": "Ward 64 - Sukhliya" (Sukhliya, MR-10 Metro pillar, Bapat square)
 - "indore-ward-11": "Ward 71 - Malharganj" (Malharganj, Grain Mandi)
 - "indore-ward-12": "Ward 78 - Rau & Bypass Corridor" (Rau, Silicon City, Bypass junction)
+- "indore-ward-13": "Ward 6 - Bhagirathpura" (Bhagirathpura, labour colony)
+- "indore-ward-14": "Ward 19 - Nandanagar" (Nandanagar, Nanda Nagar)
+- "indore-ward-15": "Ward 47 - Musakhedi" (Musakhedi, Musakhedi square)
+- "indore-ward-16": "Ward 82 - Bicholi Hapsi" (Bicholi Hapsi, Bicholi)
 
 Valid Municipal Departments:
 - "Water Supply & Sewerage"

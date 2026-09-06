@@ -35,6 +35,10 @@ var wardCatalog = []wardReference{
 	{"indore-ward-10", "Ward 64 - Sukhliya", []string{"sukhliya", "सुखलिया", "mr10", "mr 10", "bapat square"}},
 	{"indore-ward-11", "Ward 71 - Malharganj", []string{"malharganj", "मल्हारगंज", "grain mandi"}},
 	{"indore-ward-12", "Ward 78 - Rau & Bypass Corridor", []string{"rau", "राऊ", "silicon city", "bypass junction", "bypass corridor"}},
+	{"indore-ward-13", "Ward 6 - Bhagirathpura", []string{"bhagirathpura", "भागीरथपुरा", "labour colony"}},
+	{"indore-ward-14", "Ward 19 - Nandanagar", []string{"nandanagar", "nanda nagar", "नंदा नगर", "नंदानगर"}},
+	{"indore-ward-15", "Ward 47 - Musakhedi", []string{"musakhedi", "मूसाखेड़ी", "musakhedi square"}},
+	{"indore-ward-16", "Ward 82 - Bicholi Hapsi", []string{"bicholi hapsi", "bicholi", "बिचौली", "बिचौली हप्सी"}},
 }
 
 var nonWord = regexp.MustCompile(`[^\p{L}\p{N}]+`)

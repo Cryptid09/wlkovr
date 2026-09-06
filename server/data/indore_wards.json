@@ -8,7 +8,11 @@
     "infra_index": 0.38,
     "population": 42000,
     "historical_spend_cr": 2.4,
-    "critical_facilities": ["Primary Health Center", "Govt Girls High School", "Industrial Substation"],
+    "critical_facilities": [
+      "Primary Health Center",
+      "Govt Girls High School",
+      "Industrial Substation"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": true
   },
@@ -21,7 +25,10 @@
     "infra_index": 0.32,
     "population": 58000,
     "historical_spend_cr": 1.8,
-    "critical_facilities": ["Community Clinic", "District Primary School"],
+    "critical_facilities": [
+      "Community Clinic",
+      "District Primary School"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": true
   },
@@ -34,7 +41,11 @@
     "infra_index": 0.84,
     "population": 65000,
     "historical_spend_cr": 12.5,
-    "critical_facilities": ["Mother & Child Care Hospital", "BRTS Main Hub", "Commercial Hub"],
+    "critical_facilities": [
+      "Mother & Child Care Hospital",
+      "BRTS Main Hub",
+      "Commercial Hub"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": false
   },
@@ -47,7 +58,10 @@
     "infra_index": 0.88,
     "population": 38000,
     "historical_spend_cr": 9.2,
-    "critical_facilities": ["District Hospital Trauma Wing", "Major Intersection"],
+    "critical_facilities": [
+      "District Hospital Trauma Wing",
+      "Major Intersection"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": false
   },
@@ -60,7 +74,11 @@
     "infra_index": 0.62,
     "population": 49000,
     "historical_spend_cr": 7.1,
-    "critical_facilities": ["Heritage Market", "Fire Station Substation", "Govt Ayurvedic Hospital"],
+    "critical_facilities": [
+      "Heritage Market",
+      "Fire Station Substation",
+      "Govt Ayurvedic Hospital"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": false
   },
@@ -73,7 +91,10 @@
     "infra_index": 0.72,
     "population": 52000,
     "historical_spend_cr": 8.0,
-    "critical_facilities": ["DAVV University Campus", "City Bus Terminal"],
+    "critical_facilities": [
+      "DAVV University Campus",
+      "City Bus Terminal"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": false
   },
@@ -86,7 +107,10 @@
     "infra_index": 0.76,
     "population": 46000,
     "historical_spend_cr": 6.8,
-    "critical_facilities": ["Annapurna Temple Zone", "Senior Secondary School"],
+    "critical_facilities": [
+      "Annapurna Temple Zone",
+      "Senior Secondary School"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": false
   },
@@ -99,7 +123,10 @@
     "infra_index": 0.58,
     "population": 61000,
     "historical_spend_cr": 5.4,
-    "critical_facilities": ["Secondary Drainage Canal", "Community Health Center"],
+    "critical_facilities": [
+      "Secondary Drainage Canal",
+      "Community Health Center"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": false
   },
@@ -112,7 +139,11 @@
     "infra_index": 0.44,
     "population": 72000,
     "historical_spend_cr": 4.1,
-    "critical_facilities": ["Khajrana Shrine Transit", "Maternity Clinic", "High-density Slum Cluster"],
+    "critical_facilities": [
+      "Khajrana Shrine Transit",
+      "Maternity Clinic",
+      "High-density Slum Cluster"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": false
   },
@@ -125,7 +156,10 @@
     "infra_index": 0.65,
     "population": 54000,
     "historical_spend_cr": 6.0,
-    "critical_facilities": ["MR-10 Metro Pillar Area", "Sub-health center"],
+    "critical_facilities": [
+      "MR-10 Metro Pillar Area",
+      "Sub-health center"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": false
   },
@@ -138,7 +172,10 @@
     "infra_index": 0.54,
     "population": 43000,
     "historical_spend_cr": 4.8,
-    "critical_facilities": ["Old Wholesale Grain Mandi", "District Dispensary"],
+    "critical_facilities": [
+      "Old Wholesale Grain Mandi",
+      "District Dispensary"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": false
   },
@@ -151,7 +188,74 @@
     "infra_index": 0.35,
     "population": 39000,
     "historical_spend_cr": 2.1,
-    "critical_facilities": ["Rural Influx Transit Hub", "Govt Primary School"],
+    "critical_facilities": [
+      "Rural Influx Transit Hub",
+      "Govt Primary School"
+    ],
+    "active_cluster_count": 0,
+    "is_blind_spot": true
+  },
+  {
+    "id": "indore-ward-13",
+    "name": "Ward 6 - Bhagirathpura",
+    "zone": "Zone 5 (North-West)",
+    "lat": 22.7458,
+    "lng": 75.8378,
+    "infra_index": 0.29,
+    "population": 47000,
+    "historical_spend_cr": 1.6,
+    "critical_facilities": [
+      "Industrial Labour Colony",
+      "Govt Primary School"
+    ],
+    "active_cluster_count": 0,
+    "is_blind_spot": true
+  },
+  {
+    "id": "indore-ward-14",
+    "name": "Ward 19 - Nandanagar",
+    "zone": "Zone 4 (North)",
+    "lat": 22.7361,
+    "lng": 75.8492,
+    "infra_index": 0.36,
+    "population": 63000,
+    "historical_spend_cr": 2.9,
+    "critical_facilities": [
+      "Dense Residential Cluster",
+      "Sub-health Center"
+    ],
+    "active_cluster_count": 0,
+    "is_blind_spot": true
+  },
+  {
+    "id": "indore-ward-15",
+    "name": "Ward 47 - Musakhedi",
+    "zone": "Zone 10 (South-East)",
+    "lat": 22.6912,
+    "lng": 75.8951,
+    "infra_index": 0.41,
+    "population": 51000,
+    "historical_spend_cr": 3.2,
+    "critical_facilities": [
+      "Musakhedi Square Transit",
+      "Govt Middle School"
+    ],
+    "active_cluster_count": 0,
+    "is_blind_spot": true
+  },
+  {
+    "id": "indore-ward-16",
+    "name": "Ward 82 - Bicholi Hapsi",
+    "zone": "Zone 15 (Outer East)",
+    "lat": 22.7104,
+    "lng": 75.9268,
+    "infra_index": 0.33,
+    "population": 38000,
+    "historical_spend_cr": 1.4,
+    "critical_facilities": [
+      "Peri-urban Settlement",
+      "Primary Health Sub-center"
+    ],
     "active_cluster_count": 0,
     "is_blind_spot": true
   }
