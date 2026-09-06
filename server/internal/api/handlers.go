@@ -12,21 +12,33 @@ import (
 	"github.com/google/uuid"
 	"walkover/server/config"
 	"walkover/server/internal/clustering"
+	"walkover/server/internal/db"
+	"walkover/server/internal/extraction"
 	"walkover/server/internal/models"
 	"walkover/server/internal/urgency"
 )
 
 // Handler manages all REST API request processing
 type Handler struct {
-	cfg             *config.Config
-	hub             *Hub
-	urgencyEngine   *urgency.Engine
-	clusterEngine   *clustering.Engine
-	wards           []models.Ward
-	signals         []models.CitizenSignal
-	clusters        []models.Cluster
-	auditLogs       []models.AuditLog
-	mutex           sync.RWMutex
+	cfg           *config.Config
+	hub           *Hub
+	urgencyEngine *urgency.Engine
+	clusterEngine *clustering.Engine
+	wards         []models.Ward
+	signals       []models.CitizenSignal
+	clusters      []models.Cluster
+	auditLogs     []models.AuditLog
+	mutex         sync.RWMutex
+
+	// Optional dependencies attached by WithPersistence / WithExtractor.
+	// Without them the handler serves its built-in in-memory demo state.
+	repo       db.Repository
+	extractor  *extraction.Extractor
+	embeddings map[string][]float32
+
+	// evidence aggregates the strongest signal seen in each cluster, so a mild
+	// follow-up message can never lower an established cluster's urgency.
+	evidence map[string]*clusterEvidence
 }
 
 // NewHandler initializes API handlers and seeds initial memory store from wards dataset
@@ -42,6 +54,8 @@ func NewHandler(cfg *config.Config, hub *Hub) *Handler {
 		signals:       make([]models.CitizenSignal, 0),
 		clusters:      make([]models.Cluster, 0),
 		auditLogs:     make([]models.AuditLog, 0),
+		embeddings:    make(map[string][]float32),
+		evidence:      make(map[string]*clusterEvidence),
 	}
 
 	h.loadInitialWardsAndSeedData()
@@ -309,15 +323,9 @@ func (h *Handler) HandleViasocketWebhook(c *gin.Context) {
 		Metadata:    payload.Metadata,
 	}
 
-	h.mutex.Lock()
-	h.signals = append([]models.CitizenSignal{signal}, h.signals...)
-	if len(h.signals) > 50 {
-		h.signals = h.signals[:50]
-	}
-	h.mutex.Unlock()
-
-	// Broadcast live signal to connected Next.js dashboard
-	h.hub.Broadcast("SIGNAL_RECEIVED", signal)
+	// Records the signal, broadcasts it immediately, then runs Gemini
+	// extraction, persistence and cluster attachment in the background.
+	h.ingest(signal, &payload)
 
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
@@ -370,6 +378,9 @@ func (h *Handler) RecordDecision(c *gin.Context) {
 		Timestamp: time.Now(),
 	}
 	h.auditLogs = append([]models.AuditLog{audit}, h.auditLogs...)
+
+	// Persist the human decision and the cluster state it changed
+	h.persistDecision(*updatedCluster, audit)
 
 	// Broadcast decision event
 	h.hub.Broadcast("DECISION_RECORDED", gin.H{
@@ -429,12 +440,16 @@ func (h *Handler) SimulateLiveMessage(c *gin.Context) {
 		Timestamp:    time.Now(),
 	}
 
-	h.mutex.Lock()
-	h.signals = append([]models.CitizenSignal{signal}, h.signals...)
-	h.mutex.Unlock()
-
-	// Broadcast live message event to frontend
-	h.hub.Broadcast("SIGNAL_RECEIVED", signal)
+	// The demo button follows exactly the same path as a real viasocket
+	// webhook, so what judges see on stage is the production pipeline.
+	h.ingest(signal, &models.ViasocketPayload{
+		EventID:   signal.ID,
+		Provider:  string(sample.Provider),
+		Sender:    sample.Phone,
+		Body:      sample.Text,
+		Timestamp: signal.Timestamp.Format(time.RFC3339),
+		Metadata:  map[string]interface{}{"source": "demo_simulate"},
+	})
 
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,

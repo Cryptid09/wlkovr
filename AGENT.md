@@ -225,3 +225,30 @@ This file is a persistent, chronological log of all AI agent activities across s
 
 
 
+
+### 2026-09-06 13:15 IST - Claude Code (Track 3 — cross-track integration)
+- **Workstream / Goal**: Merge Tracks 2 and 4 into the Track 3 branch and close the end-to-end wiring gap (WS1.4 / WS2.4 / WS4.5 / WS6.2), authorised by the team lead
+- **Tasks Claimed/Completed**:
+  - Merged `origin/master` (Track 4 — viasocket docs, webhook tests, demo script) and `origin/nidhi` (Track 2 — Gemini extractor) into `akshat`. Conflicts in `.gitignore` (unioned) and `AGENT.md` ×2 (all entries kept, chronological). `PROGRESS.md` auto-merged.
+  - Wired the three isolated tracks into one running pipeline.
+- **Files Modified/Created**:
+  - `[NEW] server/internal/api/pipeline.go` — `WithPersistence`, `WithExtractor`, async ingest/extract/persist/cluster-attach, evidence aggregation, decision persistence.
+  - `[MOD] server/internal/api/handlers.go` — three optional fields plus `h.ingest(...)` and `h.persistDecision(...)` call sites. `NewHandler(cfg, hub)` signature deliberately unchanged so Track 4's handler tests keep passing untouched.
+  - `[MOD] server/cmd/api/main.go` — attaches the repository and the Gemini extractor at startup.
+  - `[MOD] PROGRESS.md` — WS1.4 / WS2.4 / WS4.5 / WS6.2 marked complete.
+- **Architectural & Design Decisions**:
+  - **Optional dependencies, not constructor changes.** Persistence and extraction attach via `WithPersistence` / `WithExtractor`. With neither attached the handler behaves exactly as before, which is why Track 4's existing test suite needed no edits.
+  - **Broadcast before understanding.** The webhook records, broadcasts and returns immediately, then runs Gemini extraction and persistence in a bounded background goroutine, emitting `SIGNAL_EXTRACTED` and `CLUSTER_UPDATED` afterwards. A Gemini round trip is slower than the demo's sub-2s latency claim, so it must not sit on the request path.
+  - **Cluster urgency uses the strongest evidence in the cluster, not the newest message.** Found live: Gemini rated a polite Hindi follow-up as `base_urgency: 3` with no hazard tags, which dropped an established contaminated-water cluster from urgency 100 to 90. Corroboration must never de-escalate. The handler now aggregates max base urgency and the union of hazard tags per cluster, hydrated from stored extractions at startup.
+  - **A single report never creates a cluster.** Unmatched signals stay visible in the live feed only — inventing a hotspot from one message would undermine the confidence dimension.
+  - Cluster matching requires ward *and* department to agree; cosine similarity is an additional gate that engages only once embeddings exist on both sides, so it works against seeded data that has none.
+- **Testing & Verification Conducted**:
+  - `go build ./...`, `go vet ./...`, `go test -race ./...` → all PASS, including Track 4's `internal/api` suite and Track 2's `server/tests` suite, unmodified.
+  - Live end-to-end against a running server with a real Gemini key: startup hydrated 12 wards / 3 clusters / 42 signals from the store; a Hindi WhatsApp complaint was extracted, embedded (768-dim), joined `cluster-indore-001` (8 → 9 signals, need 94 → 97, held TIER_1_CRITICAL) and persisted; an unrelated Banganga SMS was resolved to `indore-ward-01` / Electricity & Power and correctly left unclustered; a policymaker decision wrote an audit entry and updated cluster status.
+- **Blockers / Open Questions**:
+  - `server/tests/reporter_test.go:374` writes a report to a hardcoded Windows path, which on macOS/Linux creates a file literally named `C:\Users\devni\...` inside `server/tests/` on every `go test ./...` run. It dirties everyone's working tree — worth removing.
+  - Firestore itself is still unexercised: the pipeline was verified against the local JSON backend. Once a service account or emulator is configured, the same run should be repeated with `[STORE] Backend: firestore` in the log.
+  - Recommendations are persisted but not yet rendered in the dashboard cluster drawer (Workstream 5).
+- **Handoff / Next Recommended Steps**:
+  - Track 1: `GET /api/v1/clusters` now serves seeded and live data; new WebSocket event types `SIGNAL_EXTRACTED` and `CLUSTER_UPDATED` are available for live UI updates.
+  - Track 4: the viasocket flow can now point at a server that genuinely understands and clusters what it receives.

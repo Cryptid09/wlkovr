@@ -16,7 +16,7 @@ This board tracks task distribution, implementation status, and test separation 
 - [X] **WS1.1**: Define Canonical Citizen Signal Go struct / JSON contract (`ID`, `Provider`, `RawText`, `Language`, `Location`, `Timestamp`, `Metadata`).
 - [X] **WS1.2**: Implement Go Gin webhook endpoint receiving viasocket WhatsApp/SMS payloads $\rightarrow$ transform to Canonical Signal.
 - [X] **WS1.3**: Implement Go WebSocket event broadcaster (`SIGNAL_RECEIVED`, `DECISION_RECORDED`) for real-time dashboard sync.
-- [ ] **WS1.4**: Persist raw payload to Firestore `raw_events` and canonical signal to `citizen_signals` via official Go Firestore SDK.
+- [X] **WS1.4**: Persist raw payload to `raw_events` and canonical signal to `citizen_signals` via the `db.Repository` layer. Wired in `server/internal/api/pipeline.go` — the webhook broadcasts first, then persists off the request path so live-demo latency is unaffected.
 - **Test Separation**:
   - `server/data/indore_wards.json` (Mock dataset)
   - Go unit test: `go test ./...` verifying webhook conversion & WebSocket broadcast offline.
@@ -27,7 +27,7 @@ This board tracks task distribution, implementation status, and test separation 
 - [X] **WS2.1**: Define Go structured extraction schema structs (`Issue`, `Ward`, `ServiceCategory`, `Urgency1To5`, `HazardTags`, `Intent`, `Summary`).
 - [X] **WS2.2**: Implement Gemini structured output extraction prompt with Hindi/Hinglish/English few-shot examples using `github.com/google/generative-ai-go` (`server/internal/extraction/gemini.go`).
 - [X] **WS2.3**: Generate text embeddings (`text-embedding-004` 768-dim float32) for issue clustering with normalized deterministic fallback.
-- [ ] **WS2.4**: Persist extraction & embeddings to Firestore `ai_extractions` (Track 3 dependency).
+- [X] **WS2.4**: Persist extraction & embeddings to `ai_extractions`. Incoming signals run through `extraction.Extractor` (Gemini 2.5 Flash + `text-embedding-004`, 768-dim) and are stored with their embedding.
 - **Test Separation**:
   - `server/internal/extraction/testdata/raw_complaints_multilingual.json` (10 synthetic mixed-language complaints)
   - Go unit test: `go test -v ./internal/extraction/...` verified 100% PASS with few-shot Hindi/Hinglish validation, normalized embeddings, and grounded summary generation.
@@ -47,7 +47,11 @@ This board tracks task distribution, implementation status, and test separation 
 
 **Backend selection**: Firestore is used when `FIRESTORE_EMULATOR_HOST` or `GOOGLE_APPLICATION_CREDENTIALS` is set; the local JSON store is used otherwise. Note `GOOGLE_CLOUD_PROJECT` always carries a default value, so it is not evidence Firestore is reachable.
 
-**Consumer note (other workstreams)**: call `db.NewRepository(ctx, cfg)` and code against the `db.Repository` interface. WS1.4 / WS2.4 / WS4.5 / WS6.2 are the wiring tasks in your own workstreams — the data layer is ready and does not require any change to `handlers.go` on my side.
+**Consumer note (other workstreams)**: call `db.NewRepository(ctx, cfg)` and code against the `db.Repository` interface. Never construct a Firestore client directly.
+
+**End-to-end wiring (WS1.4 / WS2.4 / WS4.5 / WS6.2)** is complete in `server/internal/api/pipeline.go`. `NewHandler(cfg, hub)` is unchanged and still serves in-memory demo state on its own; `WithPersistence(ctx, repo)` and `WithExtractor(ex)` attach the optional dependencies, and `cmd/api/main.go` attaches both at startup. Both degrade gracefully: no credentials means a local JSON store, no Gemini key means deterministic offline extraction.
+
+Verified live end-to-end: a Hindi WhatsApp complaint posted to `/api/v1/webhooks/viasocket` was extracted by Gemini, embedded (768-dim), matched to `cluster-indore-001`, raised it from 8 to 9 signals and need 94 to 97 while holding Tier 1, and was persisted — while an unrelated SMS from a blind-spot ward was correctly left unclustered.
 
 ---
 
@@ -64,7 +68,7 @@ This board tracks task distribution, implementation status, and test separation 
   - `Equity` = inverse of ward infra/demographic index
   - `Actionability` = location resolved + clear department mapping heuristic
 - [X] **WS4.4**: Civic blind-spot candidate detection rule (poor infra index + **zero** active clusters). *Rule corrected 2026-09-06 by Claude Code (Track 3, authorised cross-track fix): the previous `count <= 1` threshold flagged Ward 14 and Ward 60 as blind spots while they were simultaneously the top demand hotspots. Regression test: `TestUnderservedWardWithReportsIsNotBlindSpot`.*
-- [ ] **WS4.5**: Persist computed clusters, urgency tiers, and hotspots to Firestore `clusters` & `hotspots`.
+- [X] **WS4.5**: Persist computed clusters, urgency tiers, and hotspots to `clusters` & `hotspots`. A newly understood signal is matched to an existing cluster (ward + department, plus cosine similarity once embeddings exist on both sides), the cluster is rescored, and blind spots are recomputed. Cluster urgency uses the **strongest** evidence across the cluster, never the newest message, so a mild follow-up cannot de-escalate a critical issue.
 - **Test Separation**:
   - `server/internal/urgency/engine_test.go`: Verified with `go test -v ./internal/urgency/...`.
   - `server/internal/clustering/engine_test.go`: Verified with `go test -v ./internal/clustering/...`.
@@ -85,7 +89,7 @@ This board tracks task distribution, implementation status, and test separation 
 
 ### Workstream 6: Grounded Recommendation Generator (Go + Gemini)
 - [X] **WS6.1**: Implement grounded recommendation engine generating human-readable recommendations citing specific evidence/submissions.
-- [ ] **WS6.2**: Persist to Firestore `recommendations` and render in Next.js dashboard cluster drawer.
+- [X] **WS6.2**: Persist regenerated grounded recommendations to `recommendations` on every cluster update. *Rendering in the Next.js cluster drawer remains with Workstream 5.*
 - **Test Separation**:
   - `go test ./internal/clustering/...` verifies recommendation generation format.
 
