@@ -31,7 +31,7 @@ export interface CitizenSignal {
   location_hint?: string;
   sender_phone?: string;
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Cluster {
