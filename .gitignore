@@ -1,0 +1,17 @@
+# Environment & Secrets
+.env
+.env*.local
+*-sa.json
+
+# Local persistence / scratch storage
+server/data/local_store/
+server/bin/
+
+# Dependencies & Build artifacts
+web/node_modules/
+web/.next/
+web/out/
+
+# System & Logs
+.DS_Store
+*.log
