@@ -282,3 +282,29 @@ This file is a persistent, chronological log of all AI agent activities across s
 - **Handoff / Next Recommended Steps**:
   - Re-run `go run ./cmd/seed --reset --embed` after any change to the embedding model, then re-measure the threshold.
   - Remaining gaps for the demo: Google Maps API key, and the viasocket flow pointed at this server.
+
+### 2026-09-06 14:30 IST - Claude Code (Track 3 — extractor hardening, authorised cross-track fix)
+- **Workstream / Goal**: Remove the silent-fallback pattern in Track 2's extractor and align the seed to the prompt's own taxonomy
+- **Tasks Claimed/Completed**:
+  - `GenerateEmbedding` and `ExtractSignal` now return an error when they degrade to a local fallback. Both still return a usable result, so callers may proceed — but an outage can no longer masquerade as model output.
+  - The offline fallback's vector width now tracks the configured model (`embeddingDimensions`), instead of being hardcoded to 768 while the live model emits 3072.
+  - `fallbackExtraction` and `ExtractSignal` now embed the same text composition as `db.EmbeddingText` (`Issue + " " + Summary`), so vectors from every path are comparable. This also removed a duplicate embedding API call per signal.
+  - Aligned the seed's departments and hazard tags to the canonical vocabulary defined in the Gemini prompt.
+- **Files Modified/Created**:
+  - `[MOD] server/internal/extraction/gemini.go` — error surfacing, `embeddingDimensions`, `dimensions()`, consistent embedding text.
+  - `[NEW] server/internal/extraction/dimensions_test.go` — regression tests for the width invariant.
+  - `[MOD] server/cmd/seed/generator.go` — canonical departments and hazard tags.
+  - `[MOD] server/internal/api/pipeline.go` — degrade-visibly error handling; drops offline hash vectors rather than persisting them beside real embeddings.
+  - `[MOD] server/tests/*_test.go` — model name and dimension assertions updated to match reality.
+- **Architectural & Design Decisions**:
+  - **The department mismatch was ours, not Gemini's.** The prompt defines a fixed six-department taxonomy and its own worked example maps an open manhole to "Water Supply & Sewerage". Gemini was obeying instructions; the seed had invented different names ("Sanitation & Drainage", "Public Works Department (PWD)"). Fixed at the seed, which restores department matching as a genuine fallback for extractions without embeddings.
+  - **Degrade visibly, never silently.** A non-nil error now means "this result is a local fallback". The pipeline logs and proceeds — losing a citizen's report would be worse than serving degraded output — but the outage is on the record.
+  - **Offline hash vectors are no longer persisted.** They are deterministic bag-of-words hashes, not semantics; stored beside real embeddings they would make unrelated complaints score as similar.
+- **Testing & Verification Conducted**:
+  - `go build`, `go vet`, `go test ./...` → all PASS, including Track 2's suite at the corrected 3072 dimensions.
+  - Live against Firestore, three multilingual follow-ups posted through the viasocket webhook each joined the correct cluster: Hinglish Khajrana manhole → cluster-003 (6→7, need 88→91, confidence 58.3→79.2), Hindi Chandan Nagar water → cluster-001 (8→9, need 94→97), Hinglish Vijay Nagar road → cluster-002 (12→13). All held TIER_1_CRITICAL.
+- **Blockers / Open Questions**:
+  - Seeding Firestore still takes ~2 minutes for ~103 documents plus ~3 minutes to embed 42 extractions. Do it before presenting, never during.
+  - `server/tests/reporter_test.go:374` still writes a report to a hardcoded Windows path, dirtying the working tree on every `go test ./...`.
+- **Handoff / Next Recommended Steps**:
+  - Remaining for the demo: Google Maps API key, and the viasocket flow pointed at this server.

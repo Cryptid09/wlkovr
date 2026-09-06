@@ -10,7 +10,7 @@ import (
 
 func BenchmarkExtractSignal_Offline(b *testing.B) {
 	ctx := context.Background()
-	ext, _ := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, _ := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	defer ext.Close()
 
 	signal := models.CitizenSignal{
@@ -28,7 +28,7 @@ func BenchmarkExtractSignal_Offline(b *testing.B) {
 
 func BenchmarkGenerateEmbedding_Offline(b *testing.B) {
 	ctx := context.Background()
-	ext, _ := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, _ := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	defer ext.Close()
 
 	text := "Vijay Nagar hospital route blocked due to road cave in"
@@ -41,7 +41,7 @@ func BenchmarkGenerateEmbedding_Offline(b *testing.B) {
 
 func BenchmarkBuildPrompt(b *testing.B) {
 	ctx := context.Background()
-	ext, _ := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, _ := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	defer ext.Close()
 
 	text := "Open manhole near Khajrana square"

@@ -39,7 +39,7 @@ func loadMultilingualFixtures(t *testing.T) []MultilingualFixture {
 
 func TestExtractSignal_AllMultilingualFixtures(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -92,8 +92,8 @@ func TestExtractSignal_AllMultilingualFixtures(t *testing.T) {
 				}
 			}
 
-			if len(extractionResult.Embedding) != 768 {
-				t.Errorf("Expected 768-dim embedding, got %d", len(extractionResult.Embedding))
+			if len(extractionResult.Embedding) != 3072 {
+				t.Errorf("Expected 3072-dim embedding, got %d", len(extractionResult.Embedding))
 			}
 
 			if extractionResult.ConfidenceScore <= 0 || extractionResult.ConfidenceScore > 1.0 {

@@ -27,3 +27,7 @@ web/out/
 # System & Logs
 .DS_Store
 *.log
+
+# Test artifact: server/tests/reporter_test.go writes a report to a hardcoded
+# Windows path, which becomes a literal filename on macOS/Linux.
+server/tests/C:*

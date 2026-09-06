@@ -11,7 +11,7 @@ import (
 
 func TestClusterSummary_EmptySignals(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestClusterSummary_EmptySignals(t *testing.T) {
 
 func TestClusterSummary_MultiChannelCorroboration(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestClusterSummary_MultiChannelCorroboration(t *testing.T) {
 
 func TestClusterSummary_HazardDetectionInSummary(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}

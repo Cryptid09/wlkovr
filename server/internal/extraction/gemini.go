@@ -20,7 +20,24 @@ type Extractor struct {
 	client         *genai.Client
 	modelName      string
 	embeddingModel string
+	embeddingDim   int
 	isOffline      bool
+}
+
+// embeddingDimensions reports the vector width a given embedding model emits.
+//
+// The offline fallback must produce vectors of the same width as the live
+// model, because CosineSimilarity scores mismatched lengths as 0 — a fallback
+// of the wrong size silently disables clustering instead of degrading it.
+func embeddingDimensions(model string) int {
+	switch model {
+	case "gemini-embedding-001":
+		return 3072
+	case "text-embedding-004", "embedding-001":
+		return 768
+	default:
+		return 3072
+	}
 }
 
 // ExtractedResponse matches the JSON schema expected from Gemini
@@ -49,6 +66,7 @@ func NewExtractor(ctx context.Context, apiKey string, modelName string, embeddin
 		return &Extractor{
 			modelName:      modelName,
 			embeddingModel: embeddingModel,
+			embeddingDim:   embeddingDimensions(embeddingModel),
 			isOffline:      true,
 		}, nil
 	}
@@ -59,6 +77,7 @@ func NewExtractor(ctx context.Context, apiKey string, modelName string, embeddin
 		return &Extractor{
 			modelName:      modelName,
 			embeddingModel: embeddingModel,
+			embeddingDim:   embeddingDimensions(embeddingModel),
 			isOffline:      true,
 		}, nil
 	}
@@ -67,6 +86,7 @@ func NewExtractor(ctx context.Context, apiKey string, modelName string, embeddin
 		client:         client,
 		modelName:      modelName,
 		embeddingModel: embeddingModel,
+		embeddingDim:   embeddingDimensions(embeddingModel),
 		isOffline:      false,
 	}, nil
 }
@@ -198,7 +218,13 @@ Location Hint: "%s"
 `, signalText, locationHint)
 }
 
-// ExtractSignal processes a citizen report through Gemini or fallback heuristic
+// ExtractSignal processes a citizen report through Gemini, falling back to a
+// local rule-based extractor when the model is unreachable.
+//
+// A non-nil error means the returned extraction came from that fallback rather
+// than from Gemini. The result is always non-nil and safe to use, so callers
+// that prefer degraded output to none may proceed — but they should log, since
+// silently serving heuristics as model output hides real outages.
 func (e *Extractor) ExtractSignal(ctx context.Context, signal models.CitizenSignal) (*models.AIExtraction, error) {
 	if e.isOffline || e.client == nil {
 		return e.fallbackExtraction(signal), nil
@@ -211,12 +237,11 @@ func (e *Extractor) ExtractSignal(ctx context.Context, signal models.CitizenSign
 	prompt := e.BuildPrompt(signal.RawText, signal.LocationHint)
 	resp, err := model.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
-		// Log and gracefully fall back to local rule-based extractor
-		return e.fallbackExtraction(signal), nil
+		return e.fallbackExtraction(signal), fmt.Errorf("gemini model %s: %w", e.modelName, err)
 	}
 
 	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil || len(resp.Candidates[0].Content.Parts) == 0 {
-		return e.fallbackExtraction(signal), nil
+		return e.fallbackExtraction(signal), fmt.Errorf("gemini model %s returned no content", e.modelName)
 	}
 
 	var jsonText string
@@ -230,7 +255,7 @@ func (e *Extractor) ExtractSignal(ctx context.Context, signal models.CitizenSign
 
 	var extracted ExtractedResponse
 	if err := json.Unmarshal([]byte(jsonText), &extracted); err != nil {
-		return e.fallbackExtraction(signal), nil
+		return e.fallbackExtraction(signal), fmt.Errorf("gemini model %s returned unparseable JSON: %w", e.modelName, err)
 	}
 
 	// Sanitize values
@@ -243,7 +268,14 @@ func (e *Extractor) ExtractSignal(ctx context.Context, signal models.CitizenSign
 		extracted.ConfidenceScore = 0.88
 	}
 
-	embedding, _ := e.GenerateEmbedding(ctx, signal.RawText+" "+extracted.Issue)
+	// Must compose the same text as db.EmbeddingText, or vectors written here
+	// and vectors written by the seed backfill would not be comparable.
+	embedding, embedErr := e.GenerateEmbedding(ctx, extracted.Issue+" "+extracted.Summary)
+	if embedErr != nil {
+		// A meaningless fallback vector is worse than none: it would be stored
+		// and clustered against as though it carried semantics.
+		embedding = nil
+	}
 
 	return &models.AIExtraction{
 		SignalID:        signal.ID,
@@ -261,19 +293,39 @@ func (e *Extractor) ExtractSignal(ctx context.Context, signal models.CitizenSign
 	}, nil
 }
 
-// GenerateEmbedding calls text-embedding-004 to produce 768-dim float32 vector
+// GenerateEmbedding produces a vector for text using the configured embedding
+// model, falling back to a deterministic local vector when the model is not
+// reachable.
+//
+// A non-nil error means the returned vector is that local fallback rather than
+// a real embedding. The vector is still usable and comparable to other
+// fallbacks, but it carries no semantic meaning, so callers that cluster on
+// similarity should treat it as absent. Running in configured offline mode is
+// not an error; a failed API call is.
 func (e *Extractor) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
 	if e.isOffline || e.client == nil {
-		return deterministicFallbackEmbedding(text, 768), nil
+		return deterministicFallbackEmbedding(text, e.dimensions()), nil
 	}
 
 	emModel := e.client.EmbeddingModel(e.embeddingModel)
 	res, err := emModel.EmbedContent(ctx, genai.Text(text))
-	if err != nil || res == nil || res.Embedding == nil || len(res.Embedding.Values) == 0 {
-		return deterministicFallbackEmbedding(text, 768), nil
+	if err != nil {
+		return deterministicFallbackEmbedding(text, e.dimensions()), fmt.Errorf("embedding model %s: %w", e.embeddingModel, err)
+	}
+	if res == nil || res.Embedding == nil || len(res.Embedding.Values) == 0 {
+		return deterministicFallbackEmbedding(text, e.dimensions()), fmt.Errorf("embedding model %s returned no vector", e.embeddingModel)
 	}
 
 	return res.Embedding.Values, nil
+}
+
+// dimensions reports the vector width this extractor emits, tolerating an
+// Extractor built before embeddingDim existed.
+func (e *Extractor) dimensions() int {
+	if e.embeddingDim > 0 {
+		return e.embeddingDim
+	}
+	return embeddingDimensions(e.embeddingModel)
 }
 
 // GenerateClusterSummary synthesizes a cluster of citizen signals into an evidence-grounded summary
@@ -449,7 +501,11 @@ func (e *Extractor) fallbackExtraction(signal models.CitizenSignal) *models.AIEx
 		intent = "emergency_report"
 	}
 
-	embedding := deterministicFallbackEmbedding(signal.RawText+" "+issue, 768)
+	summary := fmt.Sprintf("%s detected in %s based on citizen reports.", issue, wardName)
+
+	// Same composition and width as the live path, so offline and online
+	// vectors remain comparable to one another.
+	embedding := deterministicFallbackEmbedding(issue+" "+summary, e.dimensions())
 
 	return &models.AIExtraction{
 		SignalID:        signal.ID,
@@ -460,7 +516,7 @@ func (e *Extractor) fallbackExtraction(signal models.CitizenSignal) *models.AIEx
 		BaseUrgency:     baseUrgency,
 		HazardTags:      hazardTags,
 		Intent:          intent,
-		Summary:         fmt.Sprintf("%s detected in %s based on citizen reports.", issue, wardName),
+		Summary:         summary,
 		Embedding:       embedding,
 		ConfidenceScore: 0.92,
 		CreatedAt:       time.Now(),
@@ -524,7 +580,9 @@ func CleanJSONMarkdown(s string) string {
 	return strings.TrimSpace(s)
 }
 
-// deterministicFallbackEmbedding produces a unit-normalized 768-dim float32 vector based on subword n-grams and tokens
+// deterministicFallbackEmbedding produces a unit-normalized float32 vector of
+// the requested width from subword n-grams and tokens. It is a stable stand-in
+// for an unreachable embedding model, not a semantic embedding.
 func deterministicFallbackEmbedding(text string, dim int) []float32 {
 	vec := make([]float32, dim)
 	words := strings.Fields(strings.ToLower(text))

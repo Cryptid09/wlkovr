@@ -24,9 +24,9 @@ func calcCosineSimilarity(a, b []float32) float32 {
 	return dot / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB))))
 }
 
-func TestEmbedding_Dimension768(t *testing.T) {
+func TestEmbedding_Dimension(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -45,15 +45,15 @@ func TestEmbedding_Dimension768(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GenerateEmbedding failed for %q: %v", text, err)
 		}
-		if len(emb) != 768 {
-			t.Errorf("Expected exactly 768 dimensions for %q, got %d", text, len(emb))
+		if len(emb) != 3072 {
+			t.Errorf("Expected exactly 3072 dimensions for %q, got %d", text, len(emb))
 		}
 	}
 }
 
 func TestEmbedding_L2Normalization(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestEmbedding_L2Normalization(t *testing.T) {
 
 func TestEmbedding_DeterministicReproducibility(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestEmbedding_DeterministicReproducibility(t *testing.T) {
 
 func TestEmbedding_SemanticCosineClustering(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestEmbedding_SemanticCosineClustering(t *testing.T) {
 
 func TestEmbedding_EmptyAndWhitespaceInput(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -153,8 +153,8 @@ func TestEmbedding_EmptyAndWhitespaceInput(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GenerateEmbedding failed on empty/whitespace input %q: %v", input, err)
 		}
-		if len(emb) != 768 {
-			t.Errorf("Expected 768 dimensions for input %q, got %d", input, len(emb))
+		if len(emb) != 3072 {
+			t.Errorf("Expected 3072 dimensions for input %q, got %d", input, len(emb))
 		}
 	}
 }

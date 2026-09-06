@@ -172,19 +172,25 @@ func (h *Handler) process(signal models.CitizenSignal, payload *models.Viasocket
 		return
 	}
 
+	// A non-nil error here means Gemini was unreachable and the result is the
+	// local rule-based fallback. That is degraded, not fatal — dropping the
+	// citizen's report would be worse — but it must be visible in the log
+	// rather than passed off as model output.
 	result, err := h.extractor.ExtractSignal(ctx, signal)
 	if err != nil {
-		log.Printf("[GEMINI] extraction failed for %s: %v", signal.ID, err)
+		log.Printf("[GEMINI] degraded to local extraction for %s: %v", signal.ID, err)
+	}
+	if result == nil {
 		return
 	}
 
-	// An embedding failure is not fatal: the signal is still understood, it
-	// just falls back to ward and department matching for clustering.
-	embedding, err := h.extractor.GenerateEmbedding(ctx, db.EmbeddingText(*result))
-	if err != nil {
-		log.Printf("[GEMINI] embedding failed for %s: %v", signal.ID, err)
-	} else {
-		result.Embedding = embedding
+	// ExtractSignal already embedded the extraction using the same text
+	// composition as db.EmbeddingText, so no second embedding call is needed.
+	// Offline vectors are hashes rather than semantics though, and storing them
+	// beside real embeddings would let unrelated complaints score as similar,
+	// so they are dropped and matching falls back to ward and department.
+	if h.extractor.IsOffline() {
+		result.Embedding = nil
 	}
 
 	if h.repo != nil {

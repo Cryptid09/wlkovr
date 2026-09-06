@@ -12,15 +12,22 @@ import (
 
 // This file builds the synthetic demo corpus for the platform.
 //
+// Department and hazard-tag values must come from the canonical vocabulary
+// defined in the Gemini prompt (internal/extraction/gemini.go). A live
+// extraction and a seeded cluster that label the same issue differently will
+// not match on department, which is the fallback path when embeddings are
+// unavailable.
+//
 // The corpus is engineered, not random. Three wards receive many corroborating
 // reports in mixed languages and channels so that cross-channel clustering has
 // something real to group, and two structurally underserved wards receive no
 // reports at all so that civic blind-spot detection has something real to find.
 // Everything else is background noise from unrelated issues.
 //
-// Extractions are written with an empty Embedding: generating embeddings is
-// Workstream 2's contract (text-embedding-004), and the Gemini pipeline
-// backfills them.
+// Extractions are written with an empty Embedding. Vectors are added either by
+// the live pipeline as signals arrive, or by `cmd/seed --embed`, which
+// backfills the seeded corpus so live signals can be matched against
+// historical evidence by similarity.
 
 // complaintSpec is one synthetic citizen report before it is expanded into a
 // raw event, a canonical signal, and an AI extraction.
@@ -156,9 +163,9 @@ func hotspotGroups() []issueGroup {
 			wardID:      "indore-ward-03",
 			title:       "Major Road Caved-in on Hospital Approach Road",
 			description: "Deep crater and road surface collapse near the BRTS intersection obstructing emergency ambulance ingress.",
-			department:  "Public Works Department (PWD)",
+			department:  "Public Works / Roads",
 			issue:       "Arterial road cave-in blocking emergency access",
-			hazardTags:  []string{"CAVE_IN", "HOSPITAL_ROUTE"},
+			hazardTags:  []string{"ROAD_CAVE_IN", "HOSPITAL_ROUTE_BLOCKED"},
 			baseUrgency: 4,
 			status:      "INVESTIGATING",
 			complaints: []complaintSpec{
@@ -277,9 +284,9 @@ func hotspotGroups() []issueGroup {
 			wardID:      "indore-ward-09",
 			title:       "Uncovered Deep Drainage Manhole on School Path",
 			description: "Drain cover broken during monsoon runoff; high hazard for pedestrians and school children.",
-			department:  "Sanitation & Drainage",
+			department:  "Water Supply & Sewerage",
 			issue:       "Uncovered drainage manhole in pedestrian path",
-			hazardTags:  []string{"MANHOLE"},
+			hazardTags:  []string{"OPEN_MANHOLE"},
 			baseUrgency: 5,
 			status:      "PENDING",
 			complaints: []complaintSpec{
@@ -348,7 +355,7 @@ func backgroundGroups() []issueGroup {
 	return []issueGroup{
 		{
 			wardID:      "indore-ward-04",
-			department:  "Electrical & Street Lighting",
+			department:  "Electricity & Power",
 			issue:       "Street light not working",
 			hazardTags:  []string{},
 			baseUrgency: 2,
@@ -375,7 +382,7 @@ func backgroundGroups() []issueGroup {
 		},
 		{
 			wardID:      "indore-ward-05",
-			department:  "Solid Waste Management",
+			department:  "Sanitation & Solid Waste",
 			issue:       "Garbage collection missed",
 			hazardTags:  []string{},
 			baseUrgency: 2,
@@ -411,7 +418,7 @@ func backgroundGroups() []issueGroup {
 		},
 		{
 			wardID:      "indore-ward-06",
-			department:  "Public Works Department (PWD)",
+			department:  "Public Works / Roads",
 			issue:       "Potholes on internal road",
 			hazardTags:  []string{},
 			baseUrgency: 2,
@@ -438,7 +445,7 @@ func backgroundGroups() []issueGroup {
 		},
 		{
 			wardID:      "indore-ward-07",
-			department:  "Parks & Horticulture",
+			department:  "Public Health",
 			issue:       "Public park maintenance",
 			hazardTags:  []string{},
 			baseUrgency: 1,
@@ -465,7 +472,7 @@ func backgroundGroups() []issueGroup {
 		},
 		{
 			wardID:      "indore-ward-08",
-			department:  "Sanitation & Drainage",
+			department:  "Water Supply & Sewerage",
 			issue:       "Drain overflow during rain",
 			hazardTags:  []string{},
 			baseUrgency: 3,
@@ -501,7 +508,7 @@ func backgroundGroups() []issueGroup {
 		},
 		{
 			wardID:      "indore-ward-10",
-			department:  "Electrical & Street Lighting",
+			department:  "Electricity & Power",
 			issue:       "Street light not working",
 			hazardTags:  []string{},
 			baseUrgency: 2,
@@ -528,7 +535,7 @@ func backgroundGroups() []issueGroup {
 		},
 		{
 			wardID:      "indore-ward-11",
-			department:  "Encroachment & Enforcement",
+			department:  "Traffic & Infrastructure",
 			issue:       "Footpath encroachment",
 			hazardTags:  []string{},
 			baseUrgency: 2,

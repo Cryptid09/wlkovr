@@ -24,7 +24,7 @@ type TestResultRow struct {
 
 func TestGenerateComprehensiveTestResultsDoc(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize Extractor: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestGenerateComprehensiveTestResultsDoc(t *testing.T) {
 		}
 		mag := math.Sqrt(sumSq)
 
-		pass := len(emb) == 768 && math.Abs(mag-1.0) < 0.05
+		pass := len(emb) == 3072 && math.Abs(mag-1.0) < 0.05
 		status := "PASS"
 		if !pass {
 			status = "FAIL"
@@ -212,7 +212,7 @@ func TestGenerateComprehensiveTestResultsDoc(t *testing.T) {
 			Category: "Embedding Pipeline",
 			TestName: et.name,
 			Input:    inputDesc,
-			Expected: "Dimension: 768 float32 | L2 Magnitude: 1.000 ± 0.05",
+			Expected: "Dimension: 3072 float32 | L2 Magnitude: 1.000 ± 0.05",
 			Actual:   fmt.Sprintf("Dimension: %d | L2 Magnitude: %.4f", len(emb), mag),
 			Status:   status,
 		})

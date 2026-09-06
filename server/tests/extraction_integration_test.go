@@ -41,7 +41,7 @@ func loadIntegrationFixtures(t *testing.T) []FixtureItem {
 
 func TestExtraction_EndToEndConsumerPipeline(t *testing.T) {
 	ctx := context.Background()
-	extractor, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	extractor, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize Extractor: %v", err)
 	}
@@ -80,8 +80,8 @@ func TestExtraction_EndToEndConsumerPipeline(t *testing.T) {
 			t.Errorf("Department mismatch for %s: expected %s, got %s", fix.ID, fix.ExpectedDepartment, extractionResult.Department)
 		}
 
-		if len(extractionResult.Embedding) != 768 {
-			t.Errorf("Embedding dimension mismatch for %s: expected 768, got %d", fix.ID, len(extractionResult.Embedding))
+		if len(extractionResult.Embedding) != 3072 {
+			t.Errorf("Embedding dimension mismatch for %s: expected 3072, got %d", fix.ID, len(extractionResult.Embedding))
 		}
 
 		extractedSignals = append(extractedSignals, signal)
@@ -100,7 +100,7 @@ func TestExtraction_EndToEndConsumerPipeline(t *testing.T) {
 
 func TestExtraction_PromptIntegrityContract(t *testing.T) {
 	ctx := context.Background()
-	extractor, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "text-embedding-004")
+	extractor, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize Extractor: %v", err)
 	}
