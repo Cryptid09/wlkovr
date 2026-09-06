@@ -363,3 +363,27 @@ This file is a persistent, chronological log of all AI agent activities across s
   - `/api/v1/webhooks/viasocket` is unauthenticated: `VIASOCKET_WEBHOOK_SECRET` is loaded by config but no handler checks it. Matters once the endpoint is tunnelled publicly for the demo.
 - **Handoff / Next Recommended Steps**:
   - `cd server && go run ./cmd/api` and `cd web && npm run dev`, then `POST /api/v1/demo/simulate` to fire the live sequence on stage.
+
+### 2026-09-06 15:05 IST - Claude Code (documentation accuracy sweep)
+- **Workstream / Goal**: Bring judge-facing claims in line with what was actually built
+- **Tasks Claimed/Completed**:
+  - Audited every markdown doc for technology claims a judge could disprove by reading the repo, and corrected them.
+- **Files Modified/Created**:
+  - `[MOD] USP.md` — embedding model and dimensions, similarity threshold, map technology, ward count, fallback description, throughput claim, and two wrong file paths.
+  - `[MOD] mandeep.md` — tech stack table said the backend was "Next.js API" (it is Go) and maps were Google Maps (they are Leaflet).
+  - `[MOD] PROGRESS.md`, `[MOD] rules.md`, `[MOD] UNDERSTANDING.md` — map technology and remaining-work list.
+- **Corrections made** (claim → reality):
+  - `text-embedding-004`, 768-dim → `gemini-embedding-001`, 3072-dim (three places).
+  - "FastText subword 3-gram" fallback → a deterministic SHA-256 hash of tokens and n-grams. It is not FastText and carries no semantics; USP.md now says clustering falls back to ward/department matching while it is in use.
+  - Cosine threshold "≥ 0.70" → mean cosine ≥ 0.75, with the measured separation quoted.
+  - "85-Ward Interactive Map (Google Maps Polygons)" → Leaflet + OpenStreetMap markers, 12 wards seeded.
+  - "Backend: Next.js API" → Golang (Gin).
+  - "4,100 extractions per second" stated flatly → qualified as offline-mode throughput, since a live Gemini call is network-bound and takes seconds. The 2.58 ms figure is the ingestion and broadcast path and is accurate.
+  - `server/internal/api/hub.go` → `websocket.go`; `web/components/` → `web/src/components/`.
+- **Architectural & Design Decisions**:
+  - `AGENT.md` history left untouched — it is append-only and those entries were accurate when written. Only forward-looking and judge-facing claims were corrected.
+  - `mandeep.md`'s enrichment section still lists Google Maps as a future data source; that is roadmap, not a build claim, so it stands.
+- **Testing & Verification Conducted**:
+  - `go build`, `go vet`, `go test ./...` → PASS. `npm run build` → 7 routes compiled.
+- **Blockers / Open Questions**:
+  - The pitch deck PDF (`Zen_ Build with ai Hackathon.pdf`) still lists **Google Maps Platform** under "Google Technologies used in the solution". It is a binary and cannot be edited here — someone must fix that slide or drop the line.

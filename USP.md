@@ -47,7 +47,7 @@ Traditional grievance systems (such as CM Helpline 181, CPGRAMS, Swachhata App, 
 | **Prioritization Model** | Opaque / Arbitrary priority (often influenced by political/VIP pressure) | **Transparent 4D Scoring**: Need, Confidence, Equity, and Actionability displayed as separate bars |
 | **Cross-Channel Corroboration** | Siloed per channel (call center doesn't talk to mobile app) | **Multi-Channel Fusion**: Corroborates signals across WhatsApp, SMS, and Voice in real time |
 | **Governance Role** | Risk of black-box automated decisions or manual delays | **Human-in-the-Loop**: AI recommends; human officials decide with immutable audit logs |
-| **System Resilience** | Fails when external AI service goes down | **Enterprise Dual-Mode**: Seamless deterministic rule & FastText subword fallback (<1ms latency) |
+| **System Resilience** | Fails when external AI service goes down | **Enterprise Dual-Mode**: Seamless deterministic rule-based extraction & hash-based subword vector fallback (<1ms latency) |
 
 ---
 
@@ -99,8 +99,8 @@ Traditional grievance systems (such as CM Helpline 181, CPGRAMS, Swachhata App, 
     - Ward location resolution (`indore-ward-01` to `indore-ward-85`).
     - Specific hazard tags (`CONTAMINATED_WATER`, `LIVE_WIRE`, `OPEN_MANHOLE`, `ROAD_CAVE_IN`, `HOSPITAL_ROUTE_BLOCKED`).
     - Urgency scale (1 to 5).
-  - **`text-embedding-004` High-Dimensional Vectorization**: Generates 768-dimensional float32 vector embeddings.
-  - **In-Memory Cosine Similarity Clustering**: Groups complaints within the same ward having cosine similarity $\cos(\theta) \ge 0.70$ into a **single corroborated incident cluster**.
+  - **`gemini-embedding-001` High-Dimensional Vectorization**: Generates 3072-dimensional float32 vector embeddings.
+  - **In-Memory Cosine Similarity Clustering**: Groups complaints within the same ward whose **mean** cosine similarity $\ge 0.75$ into a **single corroborated incident cluster** (threshold calibrated against the seeded corpus: same-issue means 0.804-0.899, unrelated 0.607-0.691).
 - **Real-World Indore Demonstration**:
   - *Citizen A (Pure Hindi - WhatsApp)*: `"चंदन नगर में पीने के पानी में सीवेज का बदबूदार गंदा पानी मिल कर आ रहा है"`
   - *Citizen B (Colloquial Hinglish - SMS)*: `"Chandan nagar gali no 4 me tap water se gandi smell aa rahi hai kids are falling sick"`
@@ -203,8 +203,8 @@ WhatsApp / Voice / SMS
          ├──► Gemini 2.5 Flash: Structured Entity Extraction (Hindi / Hinglish / English)
          │    └─► Issue, Ward ID, Department, Hazard Tags, Urgency (1-5)
          │
-         ├──► text-embedding-004: 768-Dim Vector Embedding Generation
-         │    └─► Fallback: FastText Subword 3-Grams + Stopword Weighting
+         ├──► gemini-embedding-001: 3072-Dim Vector Embedding Generation
+         │    └─► Fallback: Deterministic Hash Subword 3-Grams + Stopword Weighting
          │
          ├──► In-Memory Semantic Clustering Engine: Cosine Similarity >= 0.70
          │
@@ -223,7 +223,7 @@ WhatsApp / Voice / SMS
                    │
                    ▼
        [ Next.js Executive Dashboard ]
-       - Indore 85-Ward Interactive Map (Google Maps Polygons)
+       - Indore Ward Map (Leaflet + OpenStreetMap; 12 wards seeded)
        - Red Hotspots vs. Purple Blind Spots
        - 4D Score Radar & Progress Bars
        - Human-in-the-Loop Decision Panel
@@ -286,10 +286,10 @@ WhatsApp / Voice / SMS
 | GDG Judging Criterion | How Zen Civic Intelligence Excels | Where to Verify in Codebase |
 |---|---|---|
 | **Impact & Social Good (25%)** | Solves the fundamental inequity of civic governance by proactively surfacing **Civic Blind Spots** in silent, impoverished wards that traditional portals ignore. | `server/internal/clustering/engine.go` (`DetectBlindSpots`) |
-| **Technical Innovation & AI (25%)** | Leverages **Gemini 2.5 Flash** for structured multilingual extraction + **text-embedding-004** for cross-language semantic clustering + **FastText 3-gram deterministic fallback** for 100% offline resilience. | `server/internal/extraction/gemini.go` |
+| **Technical Innovation & AI (25%)** | Leverages **Gemini 2.5 Flash** for structured multilingual extraction + **gemini-embedding-001** (3072-dim) for cross-language semantic clustering + a **deterministic hash-based fallback** for 100% offline resilience. | `server/internal/extraction/gemini.go` |
 | **Architectural Rigor (20%)** | High-performance Go microservice architecture: sub-3ms ingestion latency, deterministic mathematical urgency calculation (zero LLM hallucination risk), and transparent 4D scoring. | `server/internal/urgency/engine.go` |
 | **Sponsor Integration (15%)** | End-to-end **viasocket automation**: receives WhatsApp/SMS webhooks, transforms JSON payloads, and pushes directly to live Go API with zero user friction. | `docs/viasocket/VIASOCKET_SETUP_GUIDE.md`, `server/internal/api/` |
-| **Design & Explainability (15%)** | Interactive Google Maps ward boundaries, live WebSocket stream, radar 4D score charts, and strict human-in-the-loop audit logs. | `web/components/`, `server/internal/api/hub.go` |
+| **Design & Explainability (15%)** | Interactive Leaflet map with hotspot and blind-spot markers, live WebSocket stream, 4D score charts, and strict human-in-the-loop audit logs. | `web/src/components/`, `server/internal/api/websocket.go` |
 
 ---
 
@@ -306,10 +306,10 @@ WhatsApp / Voice / SMS
 > *"Because apps require citizens to download them, register, and know how to navigate menus. The citizens facing the most dangerous hazards—daily wage workers, elderly citizens, slum dwellers—do not download 50MB apps. By operating behind WhatsApp, SMS, and voice notes via viasocket, we have zero citizen acquisition friction and 100% immediate community reach."*
 
 **Q2: What happens if Gemini hallucinates or the internet goes down?**  
-> *"We built an enterprise dual-mode architecture. In live mode, Gemini 2.5 Flash provides state-of-the-art multilingual extraction. If internet connectivity drops or API quotas are hit, our deterministic rule-based extractor and FastText subword character 3-gram embedding engine seamlessly take over in under 1 millisecond with zero downtime."*
+> *"We built an enterprise dual-mode architecture. In live mode, Gemini 2.5 Flash provides state-of-the-art multilingual extraction. If internet connectivity drops or API quotas are hit, our deterministic rule-based extractor and hash-based subword vector engine seamlessly take over in under 1 millisecond with zero downtime. Those fallback vectors are deterministic stand-ins, not semantic embeddings, so clustering falls back to ward and department matching until the model returns."*
 
 **Q3: How do you guarantee the AI won't discriminate against wealthy neighborhoods or spend municipal money arbitrarily?**  
 > *"Our AI never spends money or closes tickets. It recommends; human officers decide. Secondly, our 4D scoring is completely transparent: Need, Confidence, Equity, and Actionability are displayed as separate, auditable bars. An officer can see exactly why a cluster was prioritized, and every single approval or rejection is immutably logged with the officer's ID to an audit trail."*
 
 **Q4: How scalable is this Go backend?**  
-> *"Our benchmarks show single-core throughput exceeding 4,100 extractions per second and 15,000 vector embeddings per second. The entire webhook ingestion and broadcast pipeline runs in 2.58 milliseconds round-trip. It can handle all 85 wards of Indore during a severe monsoon crisis without breaking a sweat."*
+> *"The webhook ingestion and broadcast pipeline runs in 2.58 milliseconds round-trip, measured end to end. Gemini extraction is network-bound and takes a few seconds, which is why it runs off the request path — the dashboard shows the citizen's message immediately and updates the cluster when understanding completes. In offline fallback mode the extractor sustains thousands of signals per second on a single core. It can handle all 85 wards of Indore during a severe monsoon crisis."*

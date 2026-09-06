@@ -180,11 +180,11 @@ The ordering matters for the demo. `SIGNAL_RECEIVED` fires in milliseconds so a 
 2. **Extraction** — Gemini structured output (issue, ward, service, urgency, intent) + embeddings per submission $\rightarrow$ write to `ai_extractions`
 3. **Data layer + seed** — Firestore collections setup, ward CSV, seed script (~30-50 complaints)
 4. **Clustering & Urgency Decision Engine** — In-memory cosine threshold clustering + multi-factor Urgency Decision Engine + 4-dimension scoring engine + blind spot detection $\rightarrow$ write to `clusters` & `hotspots`
-5. **Dashboard** — Next.js + Tailwind + shadcn/ui + Recharts: Google Maps + priority queue + Urgency Tier badges + 4 score bars + human decision action buttons + `audit_logs`
+5. **Dashboard** — Next.js + Tailwind + Recharts: Leaflet/OpenStreetMap map + priority queue + Urgency Tier badges + 4 score bars + human decision action buttons + `audit_logs`
 6. **Recommendation text** — Gemini grounded summary citing evidence $\rightarrow$ write to `recommendations`
 
 Status: **full system wired and verified end to end** — Next.js dashboard ↔ Go backend ↔ live Firestore ↔ live Gemini. A multilingual WhatsApp/SMS message posted to the viasocket webhook is extracted, embedded, matched to an existing cluster, rescored and persisted, with every step broadcast over the WebSocket. Seeded corpus: 42 signals, 3 hotspot clusters, 2 blind-spot wards, 12 wards.
 
-Remaining: the Google Maps API key (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is empty), the frontend on its own branch, and pointing a real viasocket flow at `/api/v1/webhooks/viasocket` (see `docs/viasocket/VIASOCKET_SETUP_GUIDE.md`).
+Remaining: pointing a real viasocket flow at `/api/v1/webhooks/viasocket` (see `docs/viasocket/VIASOCKET_SETUP_GUIDE.md`), and a visual pass over the dashboard in a browser. No Maps API key is needed — the map is Leaflet with OpenStreetMap tiles.
 
 Related files: `rules.md` (collaboration & engineering rules), `PROGRESS.md` (task board & test separation), `AGENT.md` (agent work journal), `mandeep.md` (pitch architecture document).

@@ -75,7 +75,7 @@ Verified live end-to-end: a Hindi WhatsApp complaint posted to `/api/v1/webhooks
 
 ---
 
-### Workstream 5: Dashboard Frontend (Next.js 15 + WebSockets + Google Maps)
+### Workstream 5: Dashboard Frontend (Next.js 15 + WebSockets + Leaflet/OpenStreetMap)
 - [X] **WS5.1**: Next.js 15 project initialized in `web/` with Tailwind CSS + Lucide Icons + Recharts.
 - [X] **WS5.2**: Hotspot & Ward list view with Urgency Tier badges, Metric cards, and live stream feed.
 - [X] **WS5.3**: Priority Cluster Detail view displaying the **4 separate score bars** (Need, Confidence, Equity, Actionability).
