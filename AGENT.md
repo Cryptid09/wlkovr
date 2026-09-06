@@ -308,3 +308,23 @@ This file is a persistent, chronological log of all AI agent activities across s
   - `server/tests/reporter_test.go:374` still writes a report to a hardcoded Windows path, dirtying the working tree on every `go test ./...`.
 - **Handoff / Next Recommended Steps**:
   - Remaining for the demo: Google Maps API key, and the viasocket flow pointed at this server.
+
+### 2026-09-06 14:45 IST - Claude Code (Track 3 — backend documentation)
+- **Workstream / Goal**: Document the finished backend so the frontend can integrate against it, and merge to master
+- **Tasks Claimed/Completed**:
+  - Documented the backend runtime and its full REST + WebSocket contract in `UNDERSTANDING.md`, and added a backend status block to `PROGRESS.md`.
+  - Corrected a wrong diagnosis I had recorded earlier: the department mismatch was not Gemini "classifying freely". The prompt defines a fixed six-department taxonomy and Gemini followed it; the seed had invented different names. `UNDERSTANDING.md` now states the taxonomy is binding on anything that writes a department.
+- **Files Modified/Created**:
+  - `[MOD] UNDERSTANDING.md` — "Backend: running it" and "Backend: API and WebSocket contract" sections; corrected matching-rule rationale; status updated to verified end to end.
+  - `[MOD] PROGRESS.md` — backend status, run commands, the two startup lines that prove live mode, verified behaviour.
+- **Architectural & Design Decisions**:
+  - Documented the WebSocket event *ordering* rather than just the names: `SIGNAL_RECEIVED` fires in milliseconds while `SIGNAL_EXTRACTED` and `CLUSTER_UPDATED` arrive seconds later after Gemini returns. Any consumer that assumes one synchronous event per message will look broken.
+  - Recorded that a signal matching no cluster emits the first two events and no third, since a single report never creates a hotspot.
+  - Left `web/` untouched — the frontend is being built on its own branch.
+- **Testing & Verification Conducted**:
+  - `go build`, `go vet`, `go test ./...` → all PASS before merging.
+- **Blockers / Open Questions**:
+  - `.env` holds an absolute path to a machine-local service account JSON that is git-ignored. Anyone else running the backend needs their own copy of that file and must repoint `GOOGLE_APPLICATION_CREDENTIALS`.
+  - The Gemini API key in `.env` should be rotated after the hackathon.
+- **Handoff / Next Recommended Steps**:
+  - Remaining: Google Maps API key, and a real viasocket flow pointed at `/api/v1/webhooks/viasocket`.

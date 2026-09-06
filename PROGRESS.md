@@ -101,6 +101,31 @@ Verified live end-to-end: a Hindi WhatsApp complaint posted to `/api/v1/webhooks
 
 ---
 
+## Backend status (2026-09-06)
+
+The Go backend is complete and verified end to end against live Firestore (project `wlkovr`) and live Gemini. Run it with:
+
+```bash
+cd server
+go run ./cmd/seed --reset --embed   # ~5 min: writes the corpus, then embeds it
+go run ./cmd/api                    # :8080
+```
+
+Confirm these two startup lines before demoing — anything else means credentials are missing and the server has quietly fallen back:
+
+```
+[STORE]  Hydrated from firestore — 12 wards, 3 clusters, 42 signals, 42 embeddings
+[GEMINI] Extractor attached — live structured extraction and embeddings enabled
+```
+
+Verified behaviour: three multilingual follow-ups posted to `/api/v1/webhooks/viasocket` each joined the correct cluster and rescored it — Khajrana manhole 6→7 (need 88→91, confidence 58.3→79.2 as corroboration became cross-channel), Chandan Nagar water 8→9 (need 94→97), Vijay Nagar road 12→13. All held TIER_1_CRITICAL. A complaint from a blind-spot ward correctly matched nothing.
+
+REST endpoints and the four WebSocket event types are documented in `UNDERSTANDING.md` under "Backend: API and WebSocket contract". `server/internal/models/models.go` is the source of truth for every JSON shape.
+
+**Not done**: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is empty, and no real viasocket flow points at the webhook yet (`docs/viasocket/VIASOCKET_SETUP_GUIDE.md` has the steps).
+
+---
+
 ## Test & Fixture Separation Matrix
 
 | Component | Upstream Dependency | Mock / Fixture Strategy | Independent Verification Method |
