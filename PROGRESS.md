@@ -26,8 +26,8 @@ This board tracks task distribution, implementation status, and test separation 
 ### Workstream 2: Extraction Pipeline (Go + Gemini SDK)
 - [X] **WS2.1**: Define Go structured extraction schema structs (`Issue`, `Ward`, `ServiceCategory`, `Urgency1To5`, `HazardTags`, `Intent`, `Summary`).
 - [X] **WS2.2**: Implement Gemini structured output extraction prompt with Hindi/Hinglish/English few-shot examples using `github.com/google/generative-ai-go` (`server/internal/extraction/gemini.go`).
-- [X] **WS2.3**: Generate text embeddings (`text-embedding-004` 768-dim float32) for issue clustering with normalized deterministic fallback.
-- [X] **WS2.4**: Persist extraction & embeddings to `ai_extractions`. Incoming signals run through `extraction.Extractor` (Gemini 2.5 Flash + `text-embedding-004`, 768-dim) and are stored with their embedding.
+- [X] **WS2.3**: Generate text embeddings for issue clustering with normalized deterministic fallback. **Model corrected to `gemini-embedding-001` (3072-dim)** — `text-embedding-004` returns HTTP 404 on the v1beta endpoint this SDK targets, and `GenerateEmbedding` silently substituted hash-based fallback vectors for it. Backfill with `go run ./cmd/seed --reset --embed`.
+- [X] **WS2.4**: Persist extraction & embeddings to `ai_extractions`. Incoming signals run through `extraction.Extractor` (Gemini 2.5 Flash + `gemini-embedding-001`, 3072-dim) and are stored with their embedding.
 - **Test Separation**:
   - `server/internal/extraction/testdata/raw_complaints_multilingual.json` (10 synthetic mixed-language complaints)
   - Go unit test: `go test -v ./internal/extraction/...` verified 100% PASS with few-shot Hindi/Hinglish validation, normalized embeddings, and grounded summary generation.

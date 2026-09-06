@@ -23,10 +23,14 @@ import (
 // exercise.
 
 const (
-	// clusterMatchThreshold is the cosine similarity above which a new signal
-	// is treated as describing the same issue as an existing cluster. It only
-	// applies once real embeddings exist on both sides; ward and department
-	// must always match regardless.
+	// clusterMatchThreshold is the mean cosine similarity above which a new
+	// signal is treated as describing the same issue as an existing cluster.
+	//
+	// Calibrated against the seeded corpus embedded with gemini-embedding-001:
+	// the lowest within-cluster mean is 0.804 and the highest mean for an
+	// unrelated complaint is 0.691, so the midpoint sits at 0.75 with roughly
+	// 0.11 of margin on either side. Re-measure with cmd/seed --embed if the
+	// embedding model ever changes.
 	clusterMatchThreshold = 0.75
 
 	// pipelineTimeout bounds the asynchronous extraction and persistence work
@@ -176,7 +180,7 @@ func (h *Handler) process(signal models.CitizenSignal, payload *models.Viasocket
 
 	// An embedding failure is not fatal: the signal is still understood, it
 	// just falls back to ward and department matching for clustering.
-	embedding, err := h.extractor.GenerateEmbedding(ctx, result.Issue+" "+result.Summary)
+	embedding, err := h.extractor.GenerateEmbedding(ctx, db.EmbeddingText(*result))
 	if err != nil {
 		log.Printf("[GEMINI] embedding failed for %s: %v", signal.ID, err)
 	} else {
@@ -286,57 +290,74 @@ func (h *Handler) attachToCluster(ctx context.Context, signal models.CitizenSign
 }
 
 // matchClusterLocked returns the index of the cluster a signal belongs to, or
-// -1. Ward and department must always agree; when embeddings exist on both
-// sides they must also clear the similarity threshold. The caller holds the
-// mutex.
+// -1 when it belongs to none. The caller holds the mutex.
+//
+// A signal must be in the same ward — two identical complaints in different
+// wards are different development needs. Within a ward, a match needs either
+// semantic similarity above the threshold or an exact department match.
+//
+// Department alone is not enough on its own terms: Gemini classifies freely
+// and does not always reproduce the seeded taxonomy (an open manhole came back
+// as "Water Supply & Sewerage" against a "Sanitation & Drainage" cluster).
+// Semantic similarity is the more reliable signal wherever embeddings exist,
+// and department equality is the fallback for extractions that have none.
 func (h *Handler) matchClusterLocked(result *models.AIExtraction) int {
 	best := -1
 	bestSimilarity := clusterMatchThreshold
+	departmentFallback := -1
 
 	for i, cluster := range h.clusters {
-		if cluster.WardID != result.WardID || cluster.Department != result.Department {
+		if cluster.WardID != result.WardID {
 			continue
 		}
 
 		similarity, comparable := h.clusterSimilarityLocked(cluster, result.Embedding)
-		if !comparable {
-			// No embeddings to compare yet — ward and department agreeing is
-			// the strongest evidence available.
-			if best < 0 {
-				best = i
-			}
-			continue
-		}
-		if similarity >= bestSimilarity {
+		if comparable && similarity >= bestSimilarity {
 			best = i
 			bestSimilarity = similarity
+			continue
+		}
+
+		if departmentFallback < 0 && cluster.Department == result.Department {
+			departmentFallback = i
 		}
 	}
 
-	return best
+	if best >= 0 {
+		return best
+	}
+	return departmentFallback
 }
 
-// clusterSimilarityLocked returns the highest cosine similarity between a
+// clusterSimilarityLocked returns the mean cosine similarity between a
 // candidate embedding and the cluster's known signal embeddings, reporting
 // whether any comparison was possible at all.
+//
+// Mean rather than max, measured against the seeded corpus with
+// gemini-embedding-001: mean separates cleanly (same issue 0.80–0.90,
+// unrelated 0.61–0.69) whereas the maxima overlap — background noise reaches
+// 0.80 against a cluster while a genuine member pair can sit at 0.72. One
+// coincidentally close sentence should not pull an unrelated complaint in.
 func (h *Handler) clusterSimilarityLocked(cluster models.Cluster, candidate []float32) (float64, bool) {
 	if len(candidate) == 0 {
 		return 0, false
 	}
 
-	highest := 0.0
-	comparable := false
+	total := 0.0
+	compared := 0
 	for _, signalID := range cluster.SignalIDs {
 		known, ok := h.embeddings[signalID]
 		if !ok || len(known) == 0 {
 			continue
 		}
-		comparable = true
-		if similarity := clustering.CosineSimilarity(candidate, known); similarity > highest {
-			highest = similarity
-		}
+		total += clustering.CosineSimilarity(candidate, known)
+		compared++
 	}
-	return highest, comparable
+
+	if compared == 0 {
+		return 0, false
+	}
+	return total / float64(compared), true
 }
 
 func (h *Handler) wardByIDLocked(wardID string) models.Ward {

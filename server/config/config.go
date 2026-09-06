@@ -42,7 +42,10 @@ func LoadConfig() *Config {
 		AllowedOrigins:         allowedOrigins,
 		GeminiAPIKey:           getEnv("GEMINI_API_KEY", ""),
 		GeminiModel:            getEnv("GEMINI_MODEL", "gemini-2.5-flash"),
-		EmbeddingModel:         getEnv("EMBEDDING_MODEL", "text-embedding-004"),
+		// text-embedding-004 is not served on the v1beta generativelanguage
+		// endpoint this SDK uses — it 404s. gemini-embedding-001 is the model
+		// that actually responds (3072 dimensions).
+		EmbeddingModel:         getEnv("EMBEDDING_MODEL", "gemini-embedding-001"),
 		GoogleCloudProject:     getEnv("GOOGLE_CLOUD_PROJECT", "zen-dev-intelligence"),
 		FirestoreEmulatorHost:  getEnv("FIRESTORE_EMULATOR_HOST", ""),
 		ViasocketWebhookSecret: getEnv("VIASOCKET_WEBHOOK_SECRET", "zen-secret-key-12345"),

@@ -10,6 +10,7 @@
 *-sa.json
 *serviceAccount*.json
 *-credentials.json
+*firebase-adminsdk*.json
 
 # Local persistence / scratch storage
 # Regenerate with: cd server && go run ./cmd/seed --reset

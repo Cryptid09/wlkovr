@@ -23,6 +23,7 @@ import (
 
 	"walkover/server/config"
 	"walkover/server/internal/db"
+	"walkover/server/internal/extraction"
 	"walkover/server/internal/models"
 )
 
@@ -32,15 +33,16 @@ func main() {
 		localDir  = flag.String("local-dir", "", "force the local JSON backend and write collections into this directory")
 		reset     = flag.Bool("reset", false, "delete every document in every collection before seeding")
 		dryRun    = flag.Bool("dry-run", false, "build and summarise the dataset without writing anything")
+		embed     = flag.Bool("embed", false, "after seeding, generate Gemini embeddings for every extraction that lacks one")
 	)
 	flag.Parse()
 
-	if err := run(*wardsPath, *localDir, *reset, *dryRun); err != nil {
+	if err := run(*wardsPath, *localDir, *reset, *dryRun, *embed); err != nil {
 		log.Fatalf("[SEED] %v", err)
 	}
 }
 
-func run(wardsPath, localDir string, reset, dryRun bool) error {
+func run(wardsPath, localDir string, reset, dryRun, embed bool) error {
 	wards, resolvedPath, err := loadWards(wardsPath)
 	if err != nil {
 		return err
@@ -78,8 +80,62 @@ func run(wardsPath, localDir string, reset, dryRun bool) error {
 		return err
 	}
 
+	if embed {
+		if err := backfillEmbeddings(ctx, repo); err != nil {
+			return fmt.Errorf("backfilling embeddings: %w", err)
+		}
+	}
+
 	log.Printf("[SEED] Done — %d signals across %d wards, %d hotspot clusters",
 		len(dataset.Signals), len(dataset.Wards), len(dataset.Clusters))
+	return nil
+}
+
+// backfillEmbeddings gives seeded extractions the vectors the seed itself does
+// not generate, so live signals can be matched against historical evidence by
+// semantic similarity rather than by department label alone.
+func backfillEmbeddings(ctx context.Context, repo db.Repository) error {
+	cfg := config.LoadConfig()
+
+	extractor, err := extraction.NewExtractor(ctx, cfg.GeminiAPIKey, cfg.GeminiModel, cfg.EmbeddingModel)
+	if err != nil {
+		return err
+	}
+	defer extractor.Close()
+
+	if extractor.IsOffline() {
+		log.Printf("[SEED] GEMINI_API_KEY not set — skipping embedding backfill")
+		return nil
+	}
+
+	extractions, err := repo.ListExtractions(ctx, 0)
+	if err != nil {
+		return err
+	}
+
+	embedded, failed := 0, 0
+	for _, item := range extractions {
+		if len(item.Embedding) > 0 {
+			continue
+		}
+
+		vector, err := extractor.GenerateEmbedding(ctx, db.EmbeddingText(item))
+		if err != nil {
+			// One bad embedding must not abort the whole backfill; the signal
+			// simply falls back to department matching.
+			log.Printf("[SEED] embedding %s: %v", item.SignalID, err)
+			failed++
+			continue
+		}
+
+		item.Embedding = vector
+		if err := repo.SaveExtraction(ctx, item); err != nil {
+			return err
+		}
+		embedded++
+	}
+
+	log.Printf("[SEED] Embedded %d extractions (%d failed) using %s", embedded, failed, cfg.EmbeddingModel)
 	return nil
 }
 

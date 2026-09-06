@@ -135,6 +135,13 @@ func NewRepository(ctx context.Context, cfg *config.Config) (Repository, error) 
 	return NewLocalRepository("")
 }
 
+// EmbeddingText is the canonical text used to embed a stored extraction.
+// Every producer of embeddings must use it, or vectors written by the seed
+// backfill and vectors written by the live pipeline would not be comparable.
+func EmbeddingText(extraction models.AIExtraction) string {
+	return extraction.Issue + " " + extraction.Summary
+}
+
 // applyLimit truncates a result slice, treating limit <= 0 as unlimited.
 func applyLimit[T any](docs []T, limit int) []T {
 	if limit > 0 && len(docs) > limit {

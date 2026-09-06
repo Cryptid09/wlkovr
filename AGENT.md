@@ -252,3 +252,33 @@ This file is a persistent, chronological log of all AI agent activities across s
 - **Handoff / Next Recommended Steps**:
   - Track 1: `GET /api/v1/clusters` now serves seeded and live data; new WebSocket event types `SIGNAL_EXTRACTED` and `CLUSTER_UPDATED` are available for live UI updates.
   - Track 4: the viasocket flow can now point at a server that genuinely understands and clusters what it receives.
+
+### 2026-09-06 14:15 IST - Claude Code (Track 3 — live Firestore + embedding correction)
+- **Workstream / Goal**: Bring up the real Firebase project, and make embedding-based clustering genuinely work
+- **Tasks Claimed/Completed**:
+  - Firestore is live. Service account for project `wlkovr` moved to `server/.secrets/firebase-admin.json` (git-ignored, mode 600) and wired through `.env`. Seed and API both report `Backend: firestore`.
+  - **Found and fixed a silent failure that made embedding-based clustering fake.** `text-embedding-004` returns HTTP 404 on the v1beta endpoint this SDK targets. `extraction.GenerateEmbedding` swallows that error and returns a deterministic hash vector with a `nil` error, so every stored "embedding" was a hash. Switched to `gemini-embedding-001` (3072-dim), which responds.
+  - Added `cmd/seed --embed`, which backfills embeddings for stored extractions that lack them.
+  - Calibrated the cluster-matching threshold against measured data instead of a guess.
+- **Files Modified/Created**:
+  - `[MOD] .env`, `[MOD] .env.example`, `[MOD] server/config/config.go` — `EMBEDDING_MODEL` default corrected to `gemini-embedding-001`.
+  - `[MOD] .gitignore` — added `*firebase-adminsdk*.json`; the downloaded key matched none of the existing patterns.
+  - `[NEW] db.EmbeddingText` — the one canonical text used to embed an extraction, so the seed backfill and the live pipeline produce comparable vectors.
+  - `[MOD] server/cmd/seed/main.go` — `--embed` backfill.
+  - `[MOD] server/internal/api/pipeline.go` — mean-based similarity, calibrated threshold, relaxed department gate.
+  - `[MOD] UNDERSTANDING.md`, `[MOD] PROGRESS.md` — corrected model, documented the matching rule and its measurements.
+- **Architectural & Design Decisions**:
+  - **Similarity uses the mean over a cluster's signals, not the max.** Measured against the seeded corpus: within-cluster means 0.804–0.899, unrelated means 0.607–0.691 — clean separation. The maxima overlap (background noise reaches 0.804 while a genuine member pair sits at 0.721), so max-based matching would admit unrelated complaints. Threshold 0.75 is the midpoint of the measured gap.
+  - **Ward is mandatory; department is only a fallback.** Gemini does not reproduce the seeded department taxonomy — it returned "Water Supply & Sewerage" for an open manhole against a "Sanitation & Drainage" cluster. Semantic similarity is the more reliable signal; department equality covers extractions with no embedding.
+- **Testing & Verification Conducted**:
+  - `go build`, `go vet`, `go test ./...` → all PASS.
+  - Live against Firestore: seeded 42 signals + 42 embeddings; a Hinglish SMS about the Khajrana manhole joined `cluster-indore-003` by similarity alone despite the department mismatch — 6 → 7 signals, need 88 → 91, confidence 58.3 → 79.2 as corroboration became cross-channel (WhatsApp + SMS), urgency held at Tier 1.
+  - Before the model fix the same message matched nothing: max cosine against the cluster was 0.456, and within-cluster similarity for identical issue strings ran as low as −0.183 — the signature of hash vectors.
+- **Blockers / Open Questions**:
+  - **`extraction.GenerateEmbedding` still swallows API errors** (`gemini.go:272`) and returns hash vectors with a `nil` error. The model name is fixed, but the next failure will be just as invisible. Track 2 should return the error, or at minimum log it.
+  - Its fallback is hardcoded to 768 dimensions while real vectors are 3072. Mismatched lengths score 0.0 in `CosineSimilarity`, so this fails safe (no match) rather than matching wrongly — but offline mode cannot cluster at all.
+  - `server/tests/*.go` still passes `"text-embedding-004"` to `NewExtractor`; harmless because those tests run offline, but misleading.
+  - Seeding Firestore takes ~2 minutes for ~103 documents (sequential writes). Fine ahead of time, risky live — use `BulkWriter` if reseeding during the demo is ever needed.
+- **Handoff / Next Recommended Steps**:
+  - Re-run `go run ./cmd/seed --reset --embed` after any change to the embedding model, then re-measure the threshold.
+  - Remaining gaps for the demo: Google Maps API key, and the viasocket flow pointed at this server.
