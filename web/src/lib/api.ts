@@ -85,3 +85,21 @@ export async function triggerSimulatedSignal(): Promise<CitizenSignal | null> {
     return null;
   }
 }
+
+export type AssistantAnswer = { answer: string; grounded_on: string[]; source: "gemini" | "offline" };
+
+/** Asks the backend assistant a question grounded in the evidence on screen. */
+export async function askAssistant(
+  question: string,
+  clusterId?: string,
+  wardId?: string
+): Promise<AssistantAnswer> {
+  const res = await fetch(`${API_BASE}/assistant`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, cluster_id: clusterId, ward_id: wardId }),
+  });
+  const json: ApiResponse<AssistantAnswer> = await res.json();
+  if (!json.success || !json.data) throw new Error(json.error || "The assistant could not answer");
+  return json.data;
+}

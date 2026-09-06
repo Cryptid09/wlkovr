@@ -328,6 +328,44 @@ func (e *Extractor) dimensions() int {
 	return embeddingDimensions(e.embeddingModel)
 }
 
+// Ask runs a free-form grounded prompt and returns the model's text.
+//
+// It is used by the policymaker assistant, which supplies its own evidence
+// block and instructions. Like the other calls here, a non-nil error means the
+// model was unreachable and the caller should fall back rather than present an
+// empty answer.
+func (e *Extractor) Ask(ctx context.Context, prompt string) (string, error) {
+	if e.isOffline || e.client == nil {
+		return "", fmt.Errorf("gemini offline: no API key configured")
+	}
+
+	model := e.client.GenerativeModel(e.modelName)
+	// Low temperature: this answers questions about evidence on screen, so
+	// invention is a defect rather than creativity.
+	model.SetTemperature(0.2)
+
+	resp, err := model.GenerateContent(ctx, genai.Text(prompt))
+	if err != nil {
+		return "", fmt.Errorf("gemini model %s: %w", e.modelName, err)
+	}
+	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil || len(resp.Candidates[0].Content.Parts) == 0 {
+		return "", fmt.Errorf("gemini model %s returned no content", e.modelName)
+	}
+
+	var answer string
+	for _, part := range resp.Candidates[0].Content.Parts {
+		if text, ok := part.(genai.Text); ok {
+			answer += string(text)
+		}
+	}
+
+	answer = strings.TrimSpace(answer)
+	if answer == "" {
+		return "", fmt.Errorf("gemini model %s returned empty text", e.modelName)
+	}
+	return answer, nil
+}
+
 // GenerateClusterSummary synthesizes a cluster of citizen signals into an evidence-grounded summary
 func (e *Extractor) GenerateClusterSummary(ctx context.Context, wardName string, department string, signals []models.CitizenSignal) (string, error) {
 	if len(signals) == 0 {

@@ -95,6 +95,16 @@ Verified live end-to-end: a Hindi WhatsApp complaint posted to `/api/v1/webhooks
 
 ---
 
+### Workstream 8: Policymaker Assistant (Go + Gemini)
+- [X] **WS8.1**: `POST /api/v1/assistant` — free-text questions answered from the platform's own evidence (selected cluster, ward, citizen reports in their original language, blind-spot state).
+- [X] **WS8.2**: Prompt constrained so the assistant explains and recommends investigation but never approves, funds or closes anything; it says so plainly when the evidence cannot answer.
+- [X] **WS8.3**: Deterministic offline answer path, so the panel still explains stored evidence when Gemini is unreachable. The response carries `source: "gemini" | "offline"` and the UI labels an offline answer.
+- [X] **WS8.4**: Dashboard help panel wired to the endpoint with a pending state, replacing the previous hardcoded keyword matcher.
+- **Test Separation**:
+  - `go test ./internal/api/... -run Assistant` — 5 tests: question required, offline answer references the selected cluster, never claims authority, evidence includes platform state, evidence quotes citizen reports.
+
+---
+
 ### Workstream 7: Live Demo & End-to-End Verification
 - [X] **WS7.1**: Real-time simulation endpoint (`POST /api/v1/demo/simulate`) with interactive UI trigger button.
 - [X] **WS7.2**: Demo script run-through checklist for GDG presentation (`presentation/GDG_3_MIN_DEMO_SCRIPT.md`, `scripts/test_viasocket_webhook.sh`, `docs/viasocket/VIASOCKET_SETUP_GUIDE.md`).
