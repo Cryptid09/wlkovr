@@ -200,14 +200,20 @@ func (h *Handler) process(signal models.CitizenSignal, payload *models.Viasocket
 	}
 
 	h.hub.Broadcast("SIGNAL_EXTRACTED", result)
-	h.attachToCluster(ctx, signal, result)
+	corroborating := h.attachToCluster(ctx, signal, result)
+
+	// Close the loop with the citizen: tell them what was understood and where
+	// it was routed. No-op unless Twilio credentials are configured.
+	h.replyToCitizen(signal, result, corroborating)
 }
 
 // attachToCluster folds a newly understood signal into an existing cluster and
 // rescores it, so the dashboard shows corroboration arriving in real time.
 // A signal that matches nothing stays visible in the live feed — the platform
 // never invents a cluster from a single report.
-func (h *Handler) attachToCluster(ctx context.Context, signal models.CitizenSignal, result *models.AIExtraction) {
+// attachToCluster returns the number of reports now corroborating the issue,
+// or 1 when the signal matched no existing cluster.
+func (h *Handler) attachToCluster(ctx context.Context, signal models.CitizenSignal, result *models.AIExtraction) int {
 	h.mutex.Lock()
 
 	if len(result.Embedding) > 0 {
@@ -218,7 +224,7 @@ func (h *Handler) attachToCluster(ctx context.Context, signal models.CitizenSign
 	if index < 0 {
 		h.mutex.Unlock()
 		log.Printf("[CLUSTER] signal %s (%s / %s) matched no existing cluster", signal.ID, result.WardID, result.Department)
-		return
+		return 1
 	}
 
 	cluster := h.clusters[index]
@@ -293,6 +299,7 @@ func (h *Handler) attachToCluster(ctx context.Context, signal models.CitizenSign
 		signal.ID, cluster.ID, cluster.SignalCount, cluster.Urgency.Score, cluster.Urgency.Tier)
 
 	h.hub.Broadcast("CLUSTER_UPDATED", cluster)
+	return cluster.SignalCount
 }
 
 // matchClusterLocked returns the index of the cluster a signal belongs to, or

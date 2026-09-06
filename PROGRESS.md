@@ -95,6 +95,16 @@ Verified live end-to-end: a Hindi WhatsApp complaint posted to `/api/v1/webhooks
 
 ---
 
+### Workstream 9: Twilio WhatsApp Channel (Track 4)
+- [X] **WS9.1**: Backend accepts Twilio's form-encoded webhook (`Body`, `From`, `To`, `ProfileName`, `WaId`, `MessageSid`) as well as viasocket-normalised JSON, so the flow can transform or forward untouched.
+- [X] **WS9.2**: `whatsapp:` prefix detection — prefixed numbers are WhatsApp, bare numbers are SMS; the prefix is stripped from the stored phone number and Twilio fields are kept as signal metadata.
+- [X] **WS9.3**: Citizen acknowledgement over WhatsApp stating what was understood, the ward, the routed department and how many reports corroborate it — explicitly *not* a promise of work. Requires `TWILIO_AUTH_TOKEN`; without it ingestion works and no reply is sent.
+- [ ] **WS9.4**: Add the HTTP action to the viasocket flow (console work) — see `docs/twilio/twilio_viasocket_whatsapp_setup.md` §10.
+- **Test Separation**:
+  - `go test ./internal/api/... -run "Twilio|Acknowledge|Reply"` — 6 tests over the real sandbox payload shape.
+
+---
+
 ### Workstream 8: Policymaker Assistant (Go + Gemini)
 - [X] **WS8.1**: `POST /api/v1/assistant` — free-text questions answered from the platform's own evidence (selected cluster, ward, citizen reports in their original language, blind-spot state).
 - [X] **WS8.2**: Prompt constrained so the assistant explains and recommends investigation but never approves, funds or closes anything; it says so plainly when the evidence cannot answer.
