@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"path/filepath"
 	"testing"
 	"time"
@@ -43,8 +44,10 @@ func signalsByWard(dataset *Dataset) map[string]int {
 func TestDatasetSizeWithinAgreedRange(t *testing.T) {
 	dataset := buildTestDataset(t)
 
-	if len(dataset.Signals) < 30 || len(dataset.Signals) > 50 {
-		t.Errorf("generated %d signals, want between 30 and 50", len(dataset.Signals))
+	// Enough volume for hotspots and a visible tier spread, small enough that
+	// a full reseed with embeddings still finishes in a few minutes.
+	if len(dataset.Signals) < 45 || len(dataset.Signals) > 80 {
+		t.Errorf("generated %d signals, want between 45 and 80", len(dataset.Signals))
 	}
 	if len(dataset.Extractions) != len(dataset.Signals) {
 		t.Errorf("generated %d extractions for %d signals, want one per signal",
@@ -109,8 +112,8 @@ func TestClustersReferenceRealSignals(t *testing.T) {
 		known[signal.ID] = true
 	}
 
-	if len(dataset.Clusters) != 3 {
-		t.Fatalf("generated %d clusters, want 3 engineered hotspots", len(dataset.Clusters))
+	if len(dataset.Clusters) != 7 {
+		t.Fatalf("generated %d clusters, want 7 engineered hotspots", len(dataset.Clusters))
 	}
 
 	for _, cluster := range dataset.Clusters {
@@ -133,8 +136,8 @@ func TestClustersReferenceRealSignals(t *testing.T) {
 // top urgency tier and each of the four scores must be populated.
 func TestHotspotScoringIsPopulated(t *testing.T) {
 	for _, cluster := range buildTestDataset(t).Clusters {
-		if cluster.Urgency.Tier != models.Tier1Critical {
-			t.Errorf("cluster %s tier = %s, want %s", cluster.ID, cluster.Urgency.Tier, models.Tier1Critical)
+		if cluster.Urgency.Tier == "" {
+			t.Errorf("cluster %s has no urgency tier", cluster.ID)
 		}
 		if len(cluster.Urgency.Factors) == 0 {
 			t.Errorf("cluster %s has no explainability factors", cluster.ID)
@@ -146,6 +149,35 @@ func TestHotspotScoringIsPopulated(t *testing.T) {
 		}
 		if cluster.Recommendation == "" {
 			t.Errorf("cluster %s has no grounded recommendation", cluster.ID)
+		}
+	}
+}
+
+// A corpus where every cluster is Tier 1 makes the four-tier urgency engine
+// look like it has one setting. The seed must exercise the range, while
+// life-safety hazards still force the top tier.
+func TestUrgencyTiersSpanTheRange(t *testing.T) {
+	dataset := buildTestDataset(t)
+
+	tiers := map[models.UrgencyTier]int{}
+	for _, cluster := range dataset.Clusters {
+		tiers[cluster.Urgency.Tier]++
+	}
+	if len(tiers) < 3 {
+		t.Errorf("clusters span only %d urgency tiers (%v), want at least 3", len(tiers), tiers)
+	}
+	if tiers[models.Tier1Critical] == 0 {
+		t.Error("no TIER_1_CRITICAL cluster: the hazard overrides are not being exercised")
+	}
+
+	// Every cluster carrying a life-safety hazard must be Tier 1.
+	for _, cluster := range dataset.Clusters {
+		hazardous := strings.Contains(cluster.Title, "Manhole") ||
+			strings.Contains(cluster.Title, "Electrical") ||
+			strings.Contains(cluster.Title, "Contamination") ||
+			strings.Contains(cluster.Title, "Caved-in")
+		if hazardous && cluster.Urgency.Tier != models.Tier1Critical {
+			t.Errorf("cluster %q carries a life-safety hazard but is %s", cluster.Title, cluster.Urgency.Tier)
 		}
 	}
 }
@@ -229,7 +261,8 @@ func TestBackgroundReportsDoNotFormHotspots(t *testing.T) {
 		hotspotWards[cluster.WardID] = true
 	}
 
-	for _, wardID := range []string{"indore-ward-04", "indore-ward-05", "indore-ward-06", "indore-ward-07", "indore-ward-08", "indore-ward-10", "indore-ward-11"} {
+	// Wards that carry only unrelated one-off reports.
+	for _, wardID := range []string{"indore-ward-06", "indore-ward-07", "indore-ward-11"} {
 		if hotspotWards[wardID] {
 			t.Errorf("background ward %s produced a hotspot cluster", wardID)
 		}

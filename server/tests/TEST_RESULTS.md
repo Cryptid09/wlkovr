@@ -1,6 +1,6 @@
 # Comprehensive Test Execution Results (Track 2: Gemini NLU Pipeline)
 
-**Execution Timestamp**: `2026-09-06 14:57:11 IST`
+**Execution Timestamp**: `2026-09-06 18:05:10 IST`
 **Target Package**: `walkover/server/internal/extraction`
 **Test Runner**: `server/tests/` (Go 1.27.1 native toolchain)
 **Total Test Scenarios Executed**: 35
@@ -95,7 +95,7 @@
 
 | Test Case | Input | Expected Output | Actual Output | Status |
 |---|---|---|---|:---:|
-| **Few-Shot System Prompt Generation** | Report: 'Ganda pani aa raha hai', Location: 'Chandan Nagar' | Contains Hindi/Hinglish few-shot training examples and all 12 Indore wards | Prompt Length: 5266 chars \| Few-Shot Present: true \| 12 Wards Present: true |  PASS |
+| **Few-Shot System Prompt Generation** | Report: 'Ganda pani aa raha hai', Location: 'Chandan Nagar' | Contains Hindi/Hinglish few-shot training examples and all 12 Indore wards | Prompt Length: 6283 chars \| Few-Shot Present: true \| 12 Wards Present: true |  PASS |
 | **Markdown JSON Code Block Stripper** | ```json <br> {"issue": "Road Pothole"} <br> ``` | {"issue": "Road Pothole"} | {"issue": "Road Pothole"} |  PASS |
 
 ---

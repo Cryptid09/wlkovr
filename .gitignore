@@ -32,3 +32,9 @@ web/out/
 # Test artifact: server/tests/reporter_test.go writes a report to a hardcoded
 # Windows path, which becomes a literal filename on macOS/Linux.
 server/tests/C:*
+
+# Compiled Go binaries left by `go build ./cmd/<name>` run from server/
+server/seed
+server/api
+server/recluster
+server/tunnel-gateway
