@@ -42,15 +42,18 @@ func embeddingDimensions(model string) int {
 
 // ExtractedResponse matches the JSON schema expected from Gemini
 type ExtractedResponse struct {
-	Issue           string   `json:"issue"`
-	WardID          string   `json:"ward_id"`
-	WardName        string   `json:"ward_name"`
-	Department      string   `json:"department"`
-	BaseUrgency     int      `json:"base_urgency"`
-	HazardTags      []string `json:"hazard_tags"`
-	Intent          string   `json:"intent"`
-	Summary         string   `json:"summary"`
-	ConfidenceScore float64  `json:"confidence_score"`
+	Issue            string   `json:"issue"`
+	IssueCategory    string   `json:"issue_category"`
+	WardID           string   `json:"ward_id"`
+	WardName         string   `json:"ward_name"`
+	Department       string   `json:"department"`
+	BaseUrgency      int      `json:"base_urgency"`
+	HazardTags       []string `json:"hazard_tags"`
+	Intent           string   `json:"intent"`
+	Summary          string   `json:"summary"`
+	DetectedLanguage string   `json:"detected_language"`
+	TranslatedText   string   `json:"translated_text"`
+	ConfidenceScore  float64  `json:"confidence_score"`
 }
 
 // NewExtractor initializes the Gemini extractor with specified models
@@ -110,6 +113,13 @@ func (e *Extractor) BuildPrompt(signalText string, locationHint string) string {
 Your task is to analyze raw citizen reports submitted via WhatsApp, SMS, or Voice across Hindi (Devanagari), Hinglish (Latin script), and English.
 You must extract structured civic incident data strictly adhering to the JSON schema below.
 
+First decide whether the message reports a concrete civic/public-infrastructure
+problem. Greetings, thanks, tests, general questions, advertisements, political
+opinions, and unrelated personal conversation are NOT civic incidents. For
+those messages set intent to "non_civic", leave issue/ward/department empty,
+set base_urgency to 1, and explain the rejection briefly in summary. For a real
+issue, intent must be either "complaint" or "emergency_report".
+
 Wards in Indore Reference:
 - "indore-ward-01": "Ward 1 - Banganga" (Banganga, Laxmibai Nagar station)
 - "indore-ward-02": "Ward 14 - Chandan Nagar" (Chandan Nagar, Dhar Road, Community Clinic)
@@ -131,6 +141,11 @@ Valid Municipal Departments:
 - "Sanitation & Solid Waste"
 - "Public Health"
 - "Traffic & Infrastructure"
+- "Fire & Emergency Services"
+
+Valid Issue Categories (choose exactly one):
+- "Water", "Roads", "Transport", "Sanitation", "Electricity",
+  "Public Health", "Fire/Emergency", "Other Civic"
 
 Valid Hazard Tags (include if evidence present):
 - "CONTAMINATED_WATER": foul smell, sewage mixing with drinking water, brownish water, diarrhea/illness
@@ -140,6 +155,7 @@ Valid Hazard Tags (include if evidence present):
 - "ROAD_CAVE_IN": large sinkhole, collapsed asphalt, road caved in
 - "SEWAGE_MIXING": backflow into residential pipelines
 - "DRAINAGE_OVERFLOW": choked nallah, monsoon water entering houses
+- "FIRE": active fire, smoke or imminent fire danger threatening people/property
 
 Base Urgency Rating Scale (1 to 5):
 5 - Immediate Critical Threat to Human Life (Live sparking wire, ambulance path blocked, poisoned water)
@@ -213,6 +229,10 @@ Output JSON:
 
 ---
 Analyze the citizen report below and output ONLY valid JSON matching this schema:
+Include issue_category, detected_language, and translated_text. translated_text
+must be a concise English rendering when the input is Hindi/Hinglish and an
+empty string for English. Choose the best matching ward from the catalog even
+when location evidence is weak; never invent a ward ID.
 Citizen Report: "%s"
 Location Hint: "%s"
 `, signalText, locationHint)
@@ -267,6 +287,10 @@ func (e *Extractor) ExtractSignal(ctx context.Context, signal models.CitizenSign
 	if extracted.ConfidenceScore <= 0 {
 		extracted.ConfidenceScore = 0.88
 	}
+	ward := resolveWard(signal.RawText, signal.LocationHint, extracted.WardID, extracted.WardName)
+	extracted.WardID = ward.ID
+	extracted.WardName = ward.Name
+	category := canonicalCategory(extracted.IssueCategory, extracted.Department, extracted.Issue, extracted.HazardTags)
 
 	// Must compose the same text as db.EmbeddingText, or vectors written here
 	// and vectors written by the seed backfill would not be comparable.
@@ -278,18 +302,25 @@ func (e *Extractor) ExtractSignal(ctx context.Context, signal models.CitizenSign
 	}
 
 	return &models.AIExtraction{
-		SignalID:        signal.ID,
-		Issue:           extracted.Issue,
-		WardID:          extracted.WardID,
-		WardName:        extracted.WardName,
-		Department:      extracted.Department,
-		BaseUrgency:     extracted.BaseUrgency,
-		HazardTags:      extracted.HazardTags,
-		Intent:          extracted.Intent,
-		Summary:         extracted.Summary,
-		Embedding:       embedding,
-		ConfidenceScore: extracted.ConfidenceScore,
-		CreatedAt:       time.Now(),
+		SignalID:           signal.ID,
+		Issue:              extracted.Issue,
+		IssueCategory:      category,
+		WardID:             extracted.WardID,
+		WardName:           extracted.WardName,
+		LocationSource:     ward.Source,
+		LocationConfidence: ward.Confidence,
+		LocationRationale:  ward.Rationale,
+		Department:         extracted.Department,
+		BaseUrgency:        extracted.BaseUrgency,
+		HazardTags:         extracted.HazardTags,
+		Intent:             extracted.Intent,
+		Summary:            extracted.Summary,
+		DetectedLanguage:   normalizedLanguage(extracted.DetectedLanguage, signal.RawText),
+		TranslatedText:     extracted.TranslatedText,
+		AnalysisSource:     "gemini",
+		Embedding:          embedding,
+		ConfidenceScore:    extracted.ConfidenceScore,
+		CreatedAt:          time.Now(),
 	}, nil
 }
 
@@ -415,45 +446,20 @@ Citizen Reports:
 // fallbackExtraction provides robust rule-based NLU extraction for offline mode / unit tests
 func (e *Extractor) fallbackExtraction(signal models.CitizenSignal) *models.AIExtraction {
 	text := strings.ToLower(signal.RawText + " " + signal.LocationHint)
-
-	wardID := "indore-ward-01"
-	wardName := "Ward 1 - Banganga"
-
-	switch {
-	case strings.Contains(text, "chandan nagar") || strings.Contains(text, "चंदन नगर") || strings.Contains(text, "dhar road"):
-		wardID = "indore-ward-02"
-		wardName = "Ward 14 - Chandan Nagar"
-	case strings.Contains(text, "vijay nagar") || strings.Contains(text, "विजय नगर"):
-		wardID = "indore-ward-03"
-		wardName = "Ward 22 - Vijay Nagar"
-	case strings.Contains(text, "palasia") || strings.Contains(text, "पलासिया"):
-		wardID = "indore-ward-04"
-		wardName = "Ward 28 - Old Palasia"
-	case strings.Contains(text, "rajwada") || strings.Contains(text, "राजवाड़ा") || strings.Contains(text, "sarafa"):
-		wardID = "indore-ward-05"
-		wardName = "Ward 35 - Rajwada & Sarafa"
-	case strings.Contains(text, "bhawarkua") || strings.Contains(text, "भंवरकुआ") || strings.Contains(text, "davv"):
-		wardID = "indore-ward-06"
-		wardName = "Ward 42 - Bhawarkua & Vishnupuri"
-	case strings.Contains(text, "annapurna") || strings.Contains(text, "अन्नपूर्णा"):
-		wardID = "indore-ward-07"
-		wardName = "Ward 49 - Annapurna"
-	case strings.Contains(text, "sudama") || strings.Contains(text, "सुदामा"):
-		wardID = "indore-ward-08"
-		wardName = "Ward 55 - Sudama Nagar"
-	case strings.Contains(text, "khajrana") || strings.Contains(text, "खजराना"):
-		wardID = "indore-ward-09"
-		wardName = "Ward 60 - Khajrana"
-	case strings.Contains(text, "sukhliya") || strings.Contains(text, "सुखलिया") || strings.Contains(text, "mr-10"):
-		wardID = "indore-ward-10"
-		wardName = "Ward 64 - Sukhliya"
-	case strings.Contains(text, "malharganj") || strings.Contains(text, "मल्हारगंज"):
-		wardID = "indore-ward-11"
-		wardName = "Ward 71 - Malharganj"
-	case strings.Contains(text, "rau") || strings.Contains(text, "राऊ") || strings.Contains(text, "bypass"):
-		wardID = "indore-ward-12"
-		wardName = "Ward 78 - Rau & Bypass Corridor"
+	if !looksLikeCivicIssue(text) {
+		return &models.AIExtraction{
+			SignalID:         signal.ID,
+			BaseUrgency:      1,
+			Intent:           "non_civic",
+			Summary:          "Message does not contain a concrete civic infrastructure or public-service issue.",
+			DetectedLanguage: normalizedLanguage("", signal.RawText),
+			AnalysisSource:   "fallback",
+			ConfidenceScore:  0.85,
+			CreatedAt:        time.Now(),
+		}
 	}
+
+	ward := resolveWard(signal.RawText, signal.LocationHint, "", "")
 
 	department := "Sanitation & Solid Waste"
 	issue := "Civic Maintenance Issue"
@@ -534,31 +540,63 @@ func (e *Extractor) fallbackExtraction(signal models.CitizenSignal) *models.AIEx
 		}
 	}
 
+	isFire := strings.Contains(text, "fire") || strings.Contains(text, "aag") || strings.Contains(text, "आग") || strings.Contains(text, "smoke") || strings.Contains(text, "धुआं")
+	if isFire {
+		department = "Fire & Emergency Services"
+		issue = "Active Fire Threatening Public Safety"
+		baseUrgency = 5
+		hazardTags = append(hazardTags, "FIRE")
+	}
+
 	intent := "complaint"
 	if baseUrgency >= 4 {
 		intent = "emergency_report"
 	}
 
-	summary := fmt.Sprintf("%s detected in %s based on citizen reports.", issue, wardName)
+	summary := fmt.Sprintf("%s detected in %s based on citizen reports.", issue, ward.Name)
 
 	// Same composition and width as the live path, so offline and online
 	// vectors remain comparable to one another.
 	embedding := deterministicFallbackEmbedding(issue+" "+summary, e.dimensions())
 
 	return &models.AIExtraction{
-		SignalID:        signal.ID,
-		Issue:           issue,
-		WardID:          wardID,
-		WardName:        wardName,
-		Department:      department,
-		BaseUrgency:     baseUrgency,
-		HazardTags:      hazardTags,
-		Intent:          intent,
-		Summary:         summary,
-		Embedding:       embedding,
-		ConfidenceScore: 0.92,
-		CreatedAt:       time.Now(),
+		SignalID:           signal.ID,
+		Issue:              issue,
+		IssueCategory:      canonicalCategory("", department, issue, hazardTags),
+		WardID:             ward.ID,
+		WardName:           ward.Name,
+		LocationSource:     ward.Source,
+		LocationConfidence: ward.Confidence,
+		LocationRationale:  ward.Rationale,
+		Department:         department,
+		BaseUrgency:        baseUrgency,
+		HazardTags:         hazardTags,
+		Intent:             intent,
+		Summary:            summary,
+		DetectedLanguage:   normalizedLanguage("", signal.RawText),
+		AnalysisSource:     "fallback",
+		Embedding:          embedding,
+		ConfidenceScore:    0.92,
+		CreatedAt:          time.Now(),
 	}
+}
+
+func looksLikeCivicIssue(text string) bool {
+	keywords := []string{
+		"water", "pani", "पानी", "sewage", "सीवेज", "sewer", "drain", "नाली", "pipe", "पाइप",
+		"road", "सड़क", "gaddha", "गड्ढा", "pothole", "cave-in", "sinkhole", "footpath",
+		"garbage", "कचरा", "waste", "sanitation", " सफाई", "manhole", "मैनहोल", "ढक्कन",
+		"electric", "bijli", "बिजली", "wire", "तार", "transformer", "street light", "streetlight",
+		"traffic", "signal", "ambulance", "hospital", "बस", "bus stop", "flood", "जलभराव",
+		"fire", "aag", "आग", "smoke", "धुआं",
+		"municipal", "नगर निगम", "public toilet", "toilet", "park", "नल", "बदबू", "overflow",
+	}
+	for _, keyword := range keywords {
+		if strings.Contains(text, keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 // fallbackClusterSummary provides a deterministic evidence-grounded summary without API call

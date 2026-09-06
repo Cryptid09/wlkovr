@@ -1,12 +1,27 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useEffect, useState } from "react";
-import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from "react-leaflet";
+import { useEffect } from "react";
 import "leaflet/dist/leaflet.css";
 import { Cluster, Ward } from "@/types";
 
 const center: [number, number] = [22.7196, 75.8577];
+
+function MapFocus({ cluster }: { cluster: Cluster | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (cluster) map.flyTo([cluster.centroid_lat, cluster.centroid_lng], Math.max(map.getZoom(), 13), { duration: 0.7 });
+  }, [cluster, map]);
+  return null;
+}
+
+function markerPosition(cluster: Cluster, index: number, clusters: Cluster[]): [number, number] {
+  const siblings = clusters.filter((item) => item.ward_id === cluster.ward_id);
+  if (siblings.length < 2) return [cluster.centroid_lat, cluster.centroid_lng];
+  const siblingIndex = siblings.findIndex((item) => item.id === cluster.id);
+  const angle = (2 * Math.PI * siblingIndex) / siblings.length + index * 0.01;
+  return [cluster.centroid_lat + Math.cos(angle) * 0.0018, cluster.centroid_lng + Math.sin(angle) * 0.0018];
+}
 
 export function IntelligenceMap({
   clusters,
@@ -21,20 +36,6 @@ export function IntelligenceMap({
   onSelectCluster: (cluster: Cluster) => void;
   onSelectWard: (ward: Ward) => void;
 }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <div className="grid h-[335px] place-items-center rounded-2xl bg-[#e8e2d8] text-xs text-[#626260]">
-        Loading Indore intelligence map…
-      </div>
-    );
-  }
-
   return (
     <div
       className="relative z-0 h-[335px] overflow-hidden rounded-2xl border border-[#d3cec6]"
@@ -47,15 +48,17 @@ export function IntelligenceMap({
         scrollWheelZoom={false}
         className="relative z-0 h-full w-full"
       >
+        <MapFocus cluster={selectedCluster} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {clusters.map((cluster) => (
+        {clusters.map((cluster, index) => (
           <CircleMarker
             key={`cluster-marker-${cluster.id}`}
-            center={[cluster.centroid_lat, cluster.centroid_lng]}
+            center={markerPosition(cluster, index, clusters)}
             pathOptions={{
+              className: selectedCluster?.id === cluster.id ? "live-marker-pulse" : "",
               color: "#ffffff",
               weight: selectedCluster?.id === cluster.id ? 5 : 2,
               fillColor: cluster.urgency.tier === "TIER_1_CRITICAL" ? "#c41c1c" : "#ff5600",

@@ -1,4 +1,5 @@
-export type ProviderType = "WhatsApp" | "SMS" | "WebPortal";
+export type ProviderType = "WhatsApp" | "SMS" | "WebPortal" | "Telegram";
+export type IssueCategory = "Water" | "Roads" | "Transport" | "Sanitation" | "Electricity" | "Public Health" | "Fire/Emergency" | "Other Civic";
 
 export type UrgencyTier = 
   | "TIER_1_CRITICAL" 
@@ -32,6 +33,44 @@ export interface CitizenSignal {
   sender_phone?: string;
   timestamp: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface SignalFeedItem {
+  id: string;
+  provider: ProviderType;
+  raw_text: string;
+  language: string;
+  translated_text?: string;
+  timestamp: string;
+  status: "PROCESSING" | "VERIFIED";
+  issue: string;
+  issue_category: IssueCategory;
+  department: string;
+  ward_id: string;
+  ward_name: string;
+  location_source: "explicit" | "alias" | "landmark" | "coordinates" | "model_inferred";
+  location_confidence: number;
+  location_rationale: string;
+  base_urgency: number;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "ROUTINE";
+  hazard_tags: string[];
+  summary: string;
+  ai_confidence: number;
+  analysis_source: "gemini" | "fallback";
+  cluster_id: string;
+  cluster_title: string;
+  cluster_status: Cluster["status"];
+  cluster_urgency: UrgencyResult;
+  cluster_signal_count: number;
+}
+
+export interface ProcessingSignal {
+  id: string;
+  provider: ProviderType;
+  raw_text: string;
+  language: string;
+  timestamp: string;
+  status: "PROCESSING";
 }
 
 export interface Cluster {

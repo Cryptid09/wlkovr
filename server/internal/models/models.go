@@ -14,6 +14,22 @@ const (
 	ProviderTelegram ProviderType = "Telegram"
 )
 
+// IssueCategory is the stable, cross-channel taxonomy used by clustering and
+// the dashboard. Department names remain useful for routing, but they are too
+// broad to decide whether two reports describe the same problem.
+type IssueCategory string
+
+const (
+	CategoryWater        IssueCategory = "Water"
+	CategoryRoads        IssueCategory = "Roads"
+	CategoryTransport    IssueCategory = "Transport"
+	CategorySanitation   IssueCategory = "Sanitation"
+	CategoryElectricity  IssueCategory = "Electricity"
+	CategoryPublicHealth IssueCategory = "Public Health"
+	CategoryFire         IssueCategory = "Fire/Emergency"
+	CategoryOther        IssueCategory = "Other Civic"
+)
+
 // UrgencyTier represents the classified urgency tier
 type UrgencyTier string
 
@@ -50,18 +66,56 @@ type CitizenSignal struct {
 
 // AIExtraction represents structured output extracted by Gemini
 type AIExtraction struct {
-	SignalID        string    `json:"signal_id" firestore:"signal_id"`
-	Issue           string    `json:"issue" firestore:"issue"`
-	WardID          string    `json:"ward_id" firestore:"ward_id"`
-	WardName        string    `json:"ward_name" firestore:"ward_name"`
-	Department      string    `json:"department" firestore:"department"`
-	BaseUrgency     int       `json:"base_urgency" firestore:"base_urgency"` // 1 - 5
-	HazardTags      []string  `json:"hazard_tags" firestore:"hazard_tags"`
-	Intent          string    `json:"intent" firestore:"intent"`
-	Summary         string    `json:"summary" firestore:"summary"`
-	Embedding       []float32 `json:"embedding,omitempty" firestore:"embedding,omitempty"`
-	ConfidenceScore float64   `json:"confidence_score" firestore:"confidence_score"`
-	CreatedAt       time.Time `json:"created_at" firestore:"created_at"`
+	SignalID           string        `json:"signal_id" firestore:"signal_id"`
+	Issue              string        `json:"issue" firestore:"issue"`
+	IssueCategory      IssueCategory `json:"issue_category" firestore:"issue_category"`
+	WardID             string        `json:"ward_id" firestore:"ward_id"`
+	WardName           string        `json:"ward_name" firestore:"ward_name"`
+	LocationSource     string        `json:"location_source" firestore:"location_source"`
+	LocationConfidence float64       `json:"location_confidence" firestore:"location_confidence"`
+	LocationRationale  string        `json:"location_rationale" firestore:"location_rationale"`
+	Department         string        `json:"department" firestore:"department"`
+	BaseUrgency        int           `json:"base_urgency" firestore:"base_urgency"` // 1 - 5
+	HazardTags         []string      `json:"hazard_tags" firestore:"hazard_tags"`
+	Intent             string        `json:"intent" firestore:"intent"`
+	Summary            string        `json:"summary" firestore:"summary"`
+	DetectedLanguage   string        `json:"detected_language" firestore:"detected_language"`
+	TranslatedText     string        `json:"translated_text,omitempty" firestore:"translated_text,omitempty"`
+	AnalysisSource     string        `json:"analysis_source" firestore:"analysis_source"`
+	Embedding          []float32     `json:"embedding,omitempty" firestore:"embedding,omitempty"`
+	ConfidenceScore    float64       `json:"confidence_score" firestore:"confidence_score"`
+	CreatedAt          time.Time     `json:"created_at" firestore:"created_at"`
+}
+
+// SignalFeedItem is the public, privacy-safe view of a verified report. It
+// intentionally excludes sender identifiers and provider metadata.
+type SignalFeedItem struct {
+	ID                 string        `json:"id"`
+	Provider           ProviderType  `json:"provider"`
+	RawText            string        `json:"raw_text"`
+	Language           string        `json:"language"`
+	TranslatedText     string        `json:"translated_text,omitempty"`
+	Timestamp          time.Time     `json:"timestamp"`
+	Status             string        `json:"status"`
+	Issue              string        `json:"issue"`
+	IssueCategory      IssueCategory `json:"issue_category"`
+	Department         string        `json:"department"`
+	WardID             string        `json:"ward_id"`
+	WardName           string        `json:"ward_name"`
+	LocationSource     string        `json:"location_source"`
+	LocationConfidence float64       `json:"location_confidence"`
+	LocationRationale  string        `json:"location_rationale"`
+	BaseUrgency        int           `json:"base_urgency"`
+	Severity           string        `json:"severity"`
+	HazardTags         []string      `json:"hazard_tags"`
+	Summary            string        `json:"summary"`
+	AIConfidence       float64       `json:"ai_confidence"`
+	AnalysisSource     string        `json:"analysis_source"`
+	ClusterID          string        `json:"cluster_id"`
+	ClusterTitle       string        `json:"cluster_title"`
+	ClusterStatus      string        `json:"cluster_status"`
+	ClusterUrgency     UrgencyResult `json:"cluster_urgency"`
+	ClusterSignalCount int           `json:"cluster_signal_count"`
 }
 
 // UrgencyResult contains multi-factor scoring and SLA breakdown

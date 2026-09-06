@@ -33,10 +33,11 @@ type Handler struct {
 	mutex         sync.RWMutex
 
 	// Optional dependencies attached by WithPersistence / WithExtractor.
-	// Without them the handler serves its built-in in-memory demo state.
-	repo       db.Repository
-	extractor  *extraction.Extractor
-	embeddings map[string][]float32
+	// Without persistence, development and production start with empty live data.
+	repo        db.Repository
+	extractor   *extraction.Extractor
+	embeddings  map[string][]float32
+	extractions map[string]models.AIExtraction
 
 	// evidence aggregates the strongest signal seen in each cluster, so a mild
 	// follow-up message can never lower an established cluster's urgency.
@@ -57,6 +58,7 @@ func NewHandler(cfg *config.Config, hub *Hub) *Handler {
 		clusters:      make([]models.Cluster, 0),
 		auditLogs:     make([]models.AuditLog, 0),
 		embeddings:    make(map[string][]float32),
+		extractions:   make(map[string]models.AIExtraction),
 		evidence:      make(map[string]*clusterEvidence),
 	}
 
@@ -77,6 +79,14 @@ func (h *Handler) loadInitialWardsAndSeedData() {
 		if err := json.Unmarshal(data, &wards); err == nil {
 			h.wards = wards
 		}
+	}
+
+	// Synthetic clusters and signals are fixtures for automated tests and the
+	// explicitly selected demo environment. Normal development and production
+	// must expose only persisted or newly ingested evidence.
+	if h.cfg.Env != "demo" && h.cfg.Env != "test" {
+		h.wards = h.clusterEngine.DetectBlindSpots(h.wards, h.clusters)
+		return
 	}
 
 	// Create initial seed clusters demonstrating Hotspots and Blind Spots
@@ -329,13 +339,14 @@ func (h *Handler) HandleViasocketWebhook(c *gin.Context) {
 	}
 
 	signal := models.CitizenSignal{
-		ID:          "sig-" + uuid.New().String()[:8],
-		Provider:    provider,
-		RawText:     payload.Body,
-		Language:    "auto-detected",
-		SenderPhone: payload.Sender,
-		Timestamp:   time.Now(),
-		Metadata:    payload.Metadata,
+		ID:           "sig-" + uuid.New().String()[:8],
+		Provider:     provider,
+		RawText:      strings.TrimSpace(payload.Body),
+		Language:     "auto-detected",
+		LocationHint: metadataString(payload.Metadata, "location_hint"),
+		SenderPhone:  strings.TrimPrefix(payload.Sender, "whatsapp:"),
+		Timestamp:    time.Now(),
+		Metadata:     payload.Metadata,
 	}
 
 	// Records the signal, broadcasts it immediately, then runs Gemini
@@ -344,12 +355,20 @@ func (h *Handler) HandleViasocketWebhook(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
-		Message: "Signal ingested and broadcasted successfully",
+		Message: "Message received and queued for civic-issue verification",
 		Data: gin.H{
 			"signal_id": signal.ID,
+			"status":    "PROCESSING",
 			"timestamp": signal.Timestamp,
 		},
 	})
+}
+
+func metadataString(metadata map[string]interface{}, key string) string {
+	if value, ok := metadata[key].(string); ok {
+		return value
+	}
+	return ""
 }
 
 type telegramUpdate struct {
@@ -378,10 +397,12 @@ type telegramChat struct {
 	Title string `json:"title"`
 }
 
+// HandleTelegramWebhook normalizes Telegram Bot API updates into the same
+// verified civic-signal pipeline used by WhatsApp, SMS and web reports.
 func (h *Handler) HandleTelegramWebhook(c *gin.Context) {
 	var update telegramUpdate
 	if err := c.ShouldBindJSON(&update); err != nil {
-		c.JSON(http.StatusBadRequest, models.ApiResponse{Success: false, Error: "Invalid Telegram update"})
+		c.JSON(http.StatusBadRequest, models.ApiResponse{Success: false, Error: "Invalid Telegram update: " + err.Error()})
 		return
 	}
 	signal, reason := h.ingestTelegramUpdate(update)
@@ -389,7 +410,11 @@ func (h *Handler) HandleTelegramWebhook(c *gin.Context) {
 		c.JSON(http.StatusOK, models.ApiResponse{Success: true, Message: "Telegram update ignored: " + reason})
 		return
 	}
-	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Message: "Telegram message queued", Data: gin.H{"signal_id": signal.ID, "status": "PROCESSING", "timestamp": signal.Timestamp}})
+	c.JSON(http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Telegram message queued for civic-issue verification",
+		Data:    gin.H{"signal_id": signal.ID, "status": "PROCESSING", "timestamp": signal.Timestamp},
+	})
 }
 
 func (h *Handler) ingestTelegramUpdate(update telegramUpdate) (*models.CitizenSignal, string) {
@@ -414,13 +439,36 @@ func (h *Handler) ingestTelegramUpdate(update telegramUpdate) (*models.CitizenSi
 	if senderID == 0 {
 		senderID = message.Chat.ID
 	}
+	name := strings.TrimSpace(strings.TrimSpace(message.From.FirstName + " " + message.From.LastName))
+	metadata := map[string]interface{}{
+		"telegram_update_id":  update.UpdateID,
+		"telegram_message_id": message.MessageID,
+		"telegram_chat_id":    message.Chat.ID,
+		"telegram_chat_type":  message.Chat.Type,
+		"sender_name":         name,
+		"username":            message.From.Username,
+	}
 	receivedAt := time.Now()
 	if message.Date > 0 {
 		receivedAt = time.Unix(message.Date, 0)
 	}
-	metadata := map[string]interface{}{"telegram_update_id": update.UpdateID, "telegram_message_id": message.MessageID, "telegram_chat_id": message.Chat.ID, "telegram_chat_type": message.Chat.Type, "sender_name": strings.TrimSpace(message.From.FirstName + " " + message.From.LastName), "username": message.From.Username}
-	payload := models.ViasocketPayload{EventID: "telegram-" + strconv.FormatInt(update.UpdateID, 10), Provider: "Telegram", Sender: "telegram:" + strconv.FormatInt(senderID, 10), Body: body, Timestamp: receivedAt.UTC().Format(time.RFC3339), Metadata: metadata}
-	signal := models.CitizenSignal{ID: "sig-" + uuid.New().String()[:8], Provider: models.ProviderTelegram, RawText: body, Language: "auto-detected", SenderPhone: payload.Sender, Timestamp: receivedAt, Metadata: metadata}
+	payload := models.ViasocketPayload{
+		EventID:   "telegram-" + strconv.FormatInt(update.UpdateID, 10),
+		Provider:  "Telegram",
+		Sender:    "telegram:" + strconv.FormatInt(senderID, 10),
+		Body:      body,
+		Timestamp: receivedAt.UTC().Format(time.RFC3339),
+		Metadata:  metadata,
+	}
+	signal := models.CitizenSignal{
+		ID:          "sig-" + uuid.New().String()[:8],
+		Provider:    models.ProviderTelegram,
+		RawText:     body,
+		Language:    "auto-detected",
+		SenderPhone: payload.Sender,
+		Timestamp:   receivedAt,
+		Metadata:    metadata,
+	}
 	h.ingest(signal, &payload)
 	return &signal, ""
 }

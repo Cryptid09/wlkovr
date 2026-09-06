@@ -1,4 +1,4 @@
-import { CitizenSignal, Cluster, Ward } from "@/types";
+import { CitizenSignal, Cluster, SignalFeedItem, Ward } from "@/types";
 
 const now = new Date();
 const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString();
@@ -29,3 +29,35 @@ export const mockSignals: CitizenSignal[] = [
   { id: "sig-02", provider: "WhatsApp", raw_text: "Urgent: sewage is mixing with the drinking water line near the clinic.", language: "English", location_hint: "Chandan Nagar clinic", timestamp: ago(24) },
   { id: "sig-11", provider: "SMS", raw_text: "Vijay Nagar square ke paas ambulance route par road dhas gayi hai.", language: "Hinglish", location_hint: "Vijay Nagar Square", timestamp: ago(40) },
 ];
+
+export const mockFeed: SignalFeedItem[] = mockSignals.map((signal, index) => {
+  const cluster = mockClusters[index];
+  const categories = ["Water", "Water", "Transport"] as const;
+  return {
+    id: signal.id,
+    provider: signal.provider,
+    raw_text: signal.raw_text,
+    language: signal.language,
+    timestamp: signal.timestamp,
+    status: "VERIFIED",
+    issue: cluster.title,
+    issue_category: categories[index],
+    department: cluster.department,
+    ward_id: cluster.ward_id,
+    ward_name: cluster.ward_name,
+    location_source: "explicit",
+    location_confidence: 0.96,
+    location_rationale: `Matched ${signal.location_hint}`,
+    base_urgency: index < 2 ? 5 : 4,
+    severity: index < 2 ? "CRITICAL" : "HIGH",
+    hazard_tags: index < 2 ? ["CONTAMINATED_WATER"] : ["HOSPITAL_ROUTE_BLOCKED"],
+    summary: cluster.description,
+    ai_confidence: 0.94,
+    analysis_source: "gemini",
+    cluster_id: cluster.id,
+    cluster_title: cluster.title,
+    cluster_status: cluster.status,
+    cluster_urgency: cluster.urgency,
+    cluster_signal_count: cluster.signal_count,
+  };
+});

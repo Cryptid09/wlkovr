@@ -100,6 +100,7 @@ type Repository interface {
 	ListExtractions(ctx context.Context, limit int) ([]models.AIExtraction, error)
 
 	UpsertCluster(ctx context.Context, cluster models.Cluster) error
+	DeleteCluster(ctx context.Context, id string) error
 	GetCluster(ctx context.Context, id string) (models.Cluster, error)
 	ListClusters(ctx context.Context) ([]models.Cluster, error)
 

@@ -155,6 +155,14 @@ func (r *firestoreRepo) UpsertCluster(ctx context.Context, cluster models.Cluste
 	return setDoc(ctx, r, CollectionClusters, cluster.ID, cluster)
 }
 
+func (r *firestoreRepo) DeleteCluster(ctx context.Context, id string) error {
+	if _, err := r.client.Collection(CollectionClusters).Doc(id).Delete(ctx); err != nil {
+		return err
+	}
+	_, err := r.client.Collection(CollectionHotspots).Doc(id).Delete(ctx)
+	return err
+}
+
 func (r *firestoreRepo) GetCluster(ctx context.Context, id string) (models.Cluster, error) {
 	return getDoc[models.Cluster](ctx, r, CollectionClusters, id)
 }

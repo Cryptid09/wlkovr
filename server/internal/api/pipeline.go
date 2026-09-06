@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"walkover/server/internal/clustering"
@@ -93,6 +94,7 @@ func (h *Handler) WithPersistence(ctx context.Context, repo db.Repository) error
 	}
 
 	for _, item := range extractions {
+		h.extractions[item.SignalID] = item
 		if len(item.Embedding) > 0 {
 			h.embeddings[item.SignalID] = item.Embedding
 		}
@@ -121,27 +123,29 @@ func (h *Handler) WithExtractor(extractor *extraction.Extractor) {
 	log.Printf("[GEMINI] Extractor attached — live structured extraction and embeddings enabled")
 }
 
-// ingest records a newly received signal in memory and on the live feed, then
-// hands the slow work to a background goroutine.
-//
-// The broadcast happens before extraction deliberately: the demo's headline
-// claim is that a WhatsApp message reaches the dashboard in under two seconds,
-// and a Gemini round trip takes longer than that. The dashboard receives a
-// second event once the signal has been understood.
+// ingest hands a received message to the verification pipeline. It is not
+// stored or broadcast until extraction confirms that it describes a concrete
+// civic issue, preventing greetings and unrelated chat from polluting the
+// operational dashboard.
 func (h *Handler) ingest(signal models.CitizenSignal, payload *models.ViasocketPayload) {
-	h.mutex.Lock()
-	h.signals = append([]models.CitizenSignal{signal}, h.signals...)
-	if len(h.signals) > 50 {
-		h.signals = h.signals[:50]
-	}
-	h.mutex.Unlock()
-
-	h.hub.Broadcast("SIGNAL_RECEIVED", signal)
-
-	if h.repo == nil && h.extractor == nil {
+	if h.extractor == nil {
+		log.Printf("[VERIFY] message %s skipped: civic issue extractor unavailable", signal.ID)
 		return
 	}
+	if h.extractor.IsOffline() {
+		h.broadcastProcessing(signal)
+		h.process(signal, payload)
+		return
+	}
+	h.broadcastProcessing(signal)
 	go h.process(signal, payload)
+}
+
+func (h *Handler) broadcastProcessing(signal models.CitizenSignal) {
+	h.hub.Broadcast("SIGNAL_PROCESSING", map[string]interface{}{
+		"id": signal.ID, "provider": signal.Provider, "raw_text": signal.RawText,
+		"language": signal.Language, "timestamp": signal.Timestamp, "status": "PROCESSING",
+	})
 }
 
 // process runs extraction, persistence and cluster attachment off the request
@@ -150,26 +154,13 @@ func (h *Handler) process(signal models.CitizenSignal, payload *models.Viasocket
 	ctx, cancel := context.WithTimeout(context.Background(), pipelineTimeout)
 	defer cancel()
 
-	if h.repo != nil {
-		if payload != nil {
-			event := db.RawEvent{
-				ID:         "evt-" + signal.ID,
-				Provider:   string(signal.Provider),
-				SignalID:   signal.ID,
-				Payload:    *payload,
-				ReceivedAt: signal.Timestamp,
-			}
-			if err := h.repo.SaveRawEvent(ctx, event); err != nil {
-				log.Printf("[STORE] raw event %s: %v", event.ID, err)
-			}
+	// Raw intake is the immutable audit record. It is stored before AI
+	// verification, while canonical citizen signals remain verified-only.
+	if h.repo != nil && payload != nil {
+		event := db.RawEvent{ID: "evt-" + signal.ID, Provider: string(signal.Provider), SignalID: signal.ID, Payload: *payload, ReceivedAt: signal.Timestamp}
+		if err := h.repo.SaveRawEvent(ctx, event); err != nil {
+			log.Printf("[STORE] raw event %s: %v", event.ID, err)
 		}
-		if err := h.repo.SaveSignal(ctx, signal); err != nil {
-			log.Printf("[STORE] signal %s: %v", signal.ID, err)
-		}
-	}
-
-	if h.extractor == nil {
-		return
 	}
 
 	// A non-nil error here means Gemini was unreachable and the result is the
@@ -183,6 +174,35 @@ func (h *Handler) process(signal models.CitizenSignal, payload *models.Viasocket
 	if result == nil {
 		return
 	}
+	if !isActionableCivicIssue(result) {
+		log.Printf("[VERIFY] rejected message %s as %s: %s", signal.ID, result.Intent, result.Summary)
+		h.hub.Broadcast("SIGNAL_REJECTED", map[string]interface{}{
+			"signal_id": signal.ID,
+			"reason":    result.Summary,
+		})
+		return
+	}
+	if result.DetectedLanguage != "" {
+		signal.Language = result.DetectedLanguage
+	}
+	if result.TranslatedText != "" {
+		signal.TranslatedText = result.TranslatedText
+	}
+
+	h.mutex.Lock()
+	h.signals = append([]models.CitizenSignal{signal}, h.signals...)
+	if len(h.signals) > 50 {
+		h.signals = h.signals[:50]
+	}
+	h.mutex.Unlock()
+
+	if h.repo != nil {
+		if err := h.repo.SaveSignal(ctx, signal); err != nil {
+			log.Printf("[STORE] signal %s: %v", signal.ID, err)
+		}
+	}
+
+	h.hub.Broadcast("SIGNAL_RECEIVED", signal)
 
 	// ExtractSignal already embedded the extraction using the same text
 	// composition as db.EmbeddingText, so no second embedding call is needed.
@@ -198,22 +218,35 @@ func (h *Handler) process(signal models.CitizenSignal, payload *models.Viasocket
 			log.Printf("[STORE] extraction %s: %v", signal.ID, err)
 		}
 	}
+	h.mutex.Lock()
+	h.extractions[result.SignalID] = *result
+	h.mutex.Unlock()
 
 	h.hub.Broadcast("SIGNAL_EXTRACTED", result)
-	corroborating := h.attachToCluster(ctx, signal, result)
+	cluster := h.attachToCluster(ctx, signal, result)
+	feedItem := buildFeedItem(signal, *result, cluster)
+	h.hub.Broadcast("SIGNAL_VERIFIED", feedItem)
 
-	// Close the loop with the citizen: tell them what was understood and where
-	// it was routed. No-op unless Twilio credentials are configured.
-	h.replyToCitizen(signal, result, corroborating)
+	// No-op unless Twilio credentials are configured.
+	h.replyToCitizen(signal, result, cluster.SignalCount)
 }
 
-// attachToCluster folds a newly understood signal into an existing cluster and
-// rescores it, so the dashboard shows corroboration arriving in real time.
-// A signal that matches nothing stays visible in the live feed — the platform
-// never invents a cluster from a single report.
-// attachToCluster returns the number of reports now corroborating the issue,
-// or 1 when the signal matched no existing cluster.
-func (h *Handler) attachToCluster(ctx context.Context, signal models.CitizenSignal, result *models.AIExtraction) int {
+func isActionableCivicIssue(result *models.AIExtraction) bool {
+	intent := strings.ToLower(strings.TrimSpace(result.Intent))
+	if intent != "complaint" && intent != "emergency_report" {
+		return false
+	}
+	return strings.TrimSpace(result.Issue) != "" &&
+		strings.TrimSpace(result.Department) != "" &&
+		strings.TrimSpace(result.WardID) != "" &&
+		result.IssueCategory != "" &&
+		result.ConfidenceScore >= 0.5
+}
+
+// attachToCluster folds a newly understood signal into a matching cluster or
+// creates a pending cluster for the first verified report. Subsequent reports
+// corroborate and rescore that cluster in real time.
+func (h *Handler) attachToCluster(ctx context.Context, signal models.CitizenSignal, result *models.AIExtraction) models.Cluster {
 	h.mutex.Lock()
 
 	if len(result.Embedding) > 0 {
@@ -222,9 +255,29 @@ func (h *Handler) attachToCluster(ctx context.Context, signal models.CitizenSign
 
 	index := h.matchClusterLocked(result)
 	if index < 0 {
-		h.mutex.Unlock()
-		log.Printf("[CLUSTER] signal %s (%s / %s) matched no existing cluster", signal.ID, result.WardID, result.Department)
-		return 1
+		ward := h.wardByIDLocked(result.WardID)
+		wardName := result.WardName
+		if wardName == "" {
+			wardName = ward.Name
+		}
+		now := time.Now()
+		h.clusters = append(h.clusters, models.Cluster{
+			ID:          "cluster-" + strings.TrimPrefix(signal.ID, "sig-"),
+			WardID:      result.WardID,
+			WardName:    wardName,
+			Department:  result.Department,
+			Title:       result.Issue,
+			Description: result.Summary,
+			Status:      "PENDING",
+			CentroidLat: ward.Lat,
+			CentroidLng: ward.Lng,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			SignalIDs:   make([]string, 0, 1),
+			Channels:    make([]string, 0, 1),
+		})
+		index = len(h.clusters) - 1
+		log.Printf("[CLUSTER] signal %s created %s", signal.ID, h.clusters[index].ID)
 	}
 
 	cluster := h.clusters[index]
@@ -299,7 +352,7 @@ func (h *Handler) attachToCluster(ctx context.Context, signal models.CitizenSign
 		signal.ID, cluster.ID, cluster.SignalCount, cluster.Urgency.Score, cluster.Urgency.Tier)
 
 	h.hub.Broadcast("CLUSTER_UPDATED", cluster)
-	return cluster.SignalCount
+	return cluster
 }
 
 // matchClusterLocked returns the index of the cluster a signal belongs to, or
@@ -323,6 +376,9 @@ func (h *Handler) matchClusterLocked(result *models.AIExtraction) int {
 		if cluster.WardID != result.WardID {
 			continue
 		}
+		if !categoriesCompatible(clusterCategory(cluster), extractionCategory(result)) {
+			continue
+		}
 
 		similarity, comparable := h.clusterSimilarityLocked(cluster, result.Embedding)
 		if comparable && similarity >= bestSimilarity {
@@ -331,7 +387,7 @@ func (h *Handler) matchClusterLocked(result *models.AIExtraction) int {
 			continue
 		}
 
-		if departmentFallback < 0 && cluster.Department == result.Department {
+		if departmentFallback < 0 && (hazardsOverlap(cluster, result) || issueWordOverlap(cluster.Title, result.Issue) >= 0.3) {
 			departmentFallback = i
 		}
 	}
@@ -340,6 +396,90 @@ func (h *Handler) matchClusterLocked(result *models.AIExtraction) int {
 		return best
 	}
 	return departmentFallback
+}
+
+func extractionCategory(result *models.AIExtraction) models.IssueCategory {
+	if result.IssueCategory != "" {
+		return result.IssueCategory
+	}
+	return categoryFromText(result.Department + " " + result.Issue + " " + strings.Join(result.HazardTags, " "))
+}
+
+func clusterCategory(cluster models.Cluster) models.IssueCategory {
+	return categoryFromText(cluster.Department + " " + cluster.Title + " " + cluster.Description + " " + strings.Join(cluster.Urgency.Factors, " "))
+}
+
+func categoryFromText(value string) models.IssueCategory {
+	text := strings.ToLower(value)
+	switch {
+	case strings.Contains(text, "fire") || strings.Contains(text, "aag"):
+		return models.CategoryFire
+	case strings.Contains(text, "manhole") || strings.Contains(text, "garbage") || strings.Contains(text, "solid waste"):
+		return models.CategorySanitation
+	case strings.Contains(text, "ambulance") || strings.Contains(text, "hospital route") || strings.Contains(text, "transport") || strings.Contains(text, "traffic"):
+		return models.CategoryTransport
+	case strings.Contains(text, "road") || strings.Contains(text, "pothole") || strings.Contains(text, "cave"):
+		return models.CategoryRoads
+	case strings.Contains(text, "electric") || strings.Contains(text, "wire") || strings.Contains(text, "power"):
+		return models.CategoryElectricity
+	case strings.Contains(text, "water") || strings.Contains(text, "sewer") || strings.Contains(text, "drain"):
+		return models.CategoryWater
+	case strings.Contains(text, "health"):
+		return models.CategoryPublicHealth
+	default:
+		return models.CategoryOther
+	}
+}
+
+func categoriesCompatible(a, b models.IssueCategory) bool {
+	if a == b {
+		return true
+	}
+	return (a == models.CategoryRoads && b == models.CategoryTransport) ||
+		(a == models.CategoryTransport && b == models.CategoryRoads)
+}
+
+func hazardsOverlap(cluster models.Cluster, result *models.AIExtraction) bool {
+	clusterText := strings.ToUpper(cluster.Title + " " + cluster.Description + " " + strings.Join(cluster.Urgency.Factors, " "))
+	for _, hazard := range result.HazardTags {
+		words := strings.Split(strings.ToUpper(hazard), "_")
+		for _, word := range words {
+			if len(word) > 4 && strings.Contains(clusterText, word) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func issueWordOverlap(a, b string) float64 {
+	stop := map[string]bool{"the": true, "and": true, "with": true, "near": true, "issue": true, "failure": true, "public": true}
+	left := map[string]bool{}
+	for _, word := range strings.Fields(strings.ToLower(a)) {
+		word = strings.Trim(word, " ,.-/&()")
+		if len(word) > 3 && !stop[word] {
+			left[word] = true
+		}
+	}
+	if len(left) == 0 {
+		return 0
+	}
+	matches := 0
+	right := map[string]bool{}
+	for _, word := range strings.Fields(strings.ToLower(b)) {
+		word = strings.Trim(word, " ,.-/&()")
+		if len(word) > 3 && !stop[word] {
+			right[word] = true
+			if left[word] {
+				matches++
+			}
+		}
+	}
+	union := len(left) + len(right) - matches
+	if union == 0 {
+		return 0
+	}
+	return float64(matches) / float64(union)
 }
 
 // clusterSimilarityLocked returns the mean cosine similarity between a

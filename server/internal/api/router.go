@@ -45,6 +45,7 @@ func SetupRouter(cfg *config.Config, handler *Handler, hub *Hub) *gin.Engine {
 
 		// Citizen Signals Live Feed
 		v1.GET("/signals", handler.GetSignals)
+		v1.GET("/feed", handler.GetFeed)
 
 		// Webhooks (viasocket WhatsApp/SMS ingestion) — publicly reachable, so
 		// it is gated by the shared secret viasocket sends as a custom header.

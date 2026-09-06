@@ -2,13 +2,17 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
 	"walkover/server/config"
+	"walkover/server/internal/extraction"
 	"walkover/server/internal/models"
 )
 
@@ -22,6 +26,8 @@ func setupTestRouter() (*Handler, *Hub, http.Handler) {
 	go hub.Run()
 
 	handler := NewHandler(cfg, hub)
+	extractor, _ := extraction.NewExtractor(context.Background(), "", "", "")
+	handler.WithExtractor(extractor)
 	router := SetupRouter(cfg, handler, hub)
 	return handler, hub, router
 }
@@ -44,6 +50,180 @@ func TestHealthCheck(t *testing.T) {
 
 	if !apiResp.Success {
 		t.Fatalf("expected success true, got false")
+	}
+}
+
+func TestTwilioFormWebhookNormalizesAndIngestsCivicIssue(t *testing.T) {
+	handler, _, router := setupTestRouter()
+
+	form := url.Values{
+		"MessageSid":  {"SM-test-001"},
+		"From":        {"whatsapp:+916232230297"},
+		"To":          {"whatsapp:+14155238886"},
+		"Body":        {"Vijay Nagar road par bada pothole hai aur ambulance ko problem ho rahi hai"},
+		"ProfileName": {"Nidhi Agrawal"},
+		"WaId":        {"916232230297"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/viasocket", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp := httptest.NewRecorder()
+
+	handler.mutex.RLock()
+	before := len(handler.signals)
+	handler.mutex.RUnlock()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+	handler.mutex.RLock()
+	defer handler.mutex.RUnlock()
+	if len(handler.signals) != before+1 {
+		t.Fatalf("expected one verified signal, before=%d after=%d", before, len(handler.signals))
+	}
+	if handler.signals[0].SenderPhone != "+916232230297" {
+		t.Fatalf("expected normalized sender, got %q", handler.signals[0].SenderPhone)
+	}
+}
+
+func TestWebhookRejectsGreetingFromOperationalFeed(t *testing.T) {
+	handler, _, router := setupTestRouter()
+	handler.mutex.RLock()
+	before := len(handler.signals)
+	handler.mutex.RUnlock()
+
+	body := `{"provider":"WhatsApp","sender":"whatsapp:+916232230297","body":"Hi"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/viasocket", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 acknowledgement, got %d: %s", resp.Code, resp.Body.String())
+	}
+	handler.mutex.RLock()
+	after := len(handler.signals)
+	handler.mutex.RUnlock()
+	if after != before {
+		t.Fatalf("greeting entered operational feed: before=%d after=%d", before, after)
+	}
+}
+
+func TestFireDoesNotMergeIntoManholeCluster(t *testing.T) {
+	cfg := &config.Config{Port: "8080", Env: "development", AllowedOrigins: []string{"*"}}
+	hub := NewHub()
+	go hub.Run()
+	handler := NewHandler(cfg, hub)
+	extractor, _ := extraction.NewExtractor(context.Background(), "", "", "")
+	handler.WithExtractor(extractor)
+	now := time.Now()
+	handler.ingest(models.CitizenSignal{ID: "sig-live-manhole", Provider: models.ProviderTelegram, RawText: "Khajrane ke yaha manhole khula hai", Timestamp: now}, nil)
+	handler.ingest(models.CitizenSignal{ID: "sig-live-fire", Provider: models.ProviderTelegram, RawText: "Khajrana mandir ke paas aag lagi hai", Timestamp: now.Add(time.Second)}, nil)
+	handler.mutex.RLock()
+	defer handler.mutex.RUnlock()
+	if len(handler.clusters) != 2 {
+		t.Fatalf("fire and manhole merged; got %d clusters", len(handler.clusters))
+	}
+}
+
+func TestFeedReturnsEnrichedPrivacySafeView(t *testing.T) {
+	_, _, router := setupTestRouter()
+	body := `{"provider":"WhatsApp","sender":"whatsapp:+911234567890","body":"Khajrana me open manhole hai"}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/viasocket", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(httptest.NewRecorder(), request)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/feed", nil))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"issue_category"`) || !strings.Contains(response.Body.String(), `"ward_name"`) {
+		t.Fatalf("feed is not enriched: %s", response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "+911234567890") || strings.Contains(response.Body.String(), "sender_phone") {
+		t.Fatalf("feed exposed sender identity: %s", response.Body.String())
+	}
+}
+
+func TestFirstVerifiedIssueCreatesPendingCluster(t *testing.T) {
+	cfg := &config.Config{Port: "8080", Env: "development", AllowedOrigins: []string{"*"}}
+	hub := NewHub()
+	go hub.Run()
+	handler := NewHandler(cfg, hub)
+	extractor, _ := extraction.NewExtractor(context.Background(), "", "", "")
+	handler.WithExtractor(extractor)
+	router := SetupRouter(cfg, handler, hub)
+
+	body := `{"provider":"WhatsApp","sender":"+919876543210","body":"Khajrana school gate ke paas open manhole hai"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/viasocket", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+	handler.mutex.RLock()
+	defer handler.mutex.RUnlock()
+	if len(handler.clusters) != 1 {
+		t.Fatalf("expected first verified issue to create one cluster, got %d", len(handler.clusters))
+	}
+	if handler.clusters[0].Status != "PENDING" || handler.clusters[0].SignalCount != 1 {
+		t.Fatalf("unexpected new cluster: %+v", handler.clusters[0])
+	}
+}
+
+func TestTelegramWebhookIngestsVerifiedIssue(t *testing.T) {
+	handler, _, router := setupTestRouter()
+	handler.mutex.RLock()
+	before := len(handler.signals)
+	handler.mutex.RUnlock()
+
+	body := `{
+		"update_id": 9001,
+		"message": {
+			"message_id": 51,
+			"date": 1788681600,
+			"text": "Khajrana school gate ke paas open manhole hai",
+			"from": {"id": 123456, "first_name": "Nidhi", "username": "civic_test"},
+			"chat": {"id": 123456, "type": "private"}
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/telegram", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+	handler.mutex.RLock()
+	defer handler.mutex.RUnlock()
+	if len(handler.signals) != before+1 {
+		t.Fatalf("expected Telegram issue in verified feed, before=%d after=%d", before, len(handler.signals))
+	}
+	if handler.signals[0].Provider != models.ProviderTelegram {
+		t.Fatalf("expected Telegram provider, got %q", handler.signals[0].Provider)
+	}
+}
+
+func TestTelegramGreetingDoesNotEnterOperationalFeed(t *testing.T) {
+	handler, _, router := setupTestRouter()
+	handler.mutex.RLock()
+	before := len(handler.signals)
+	handler.mutex.RUnlock()
+
+	body := `{"update_id":9002,"message":{"message_id":52,"text":"Hello","from":{"id":123456},"chat":{"id":123456,"type":"private"}}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/telegram", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200 acknowledgement, got %d", resp.Code)
+	}
+	handler.mutex.RLock()
+	after := len(handler.signals)
+	handler.mutex.RUnlock()
+	if after != before {
+		t.Fatalf("Telegram greeting entered operational feed: before=%d after=%d", before, after)
 	}
 }
 

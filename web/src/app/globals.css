@@ -1,22 +1,5 @@
 @import "tailwindcss";
 
-/* Keep the command shell focused on navigation and live status. */
-aside > button {
-  display: none;
-}
-
-aside > div:last-child {
-  display: none;
-}
-
-main > div.mx-auto {
-  padding-top: 1rem !important;
-}
-
-main > div.mx-auto > section.grid {
-  margin-top: 1.5rem;
-}
-
 :root {
   --background: #f5f1ec;
   --foreground: #111111;
@@ -43,3 +26,10 @@ body {
 }
 
 .animate-slide-in { animation: slide-in 220ms ease-out; }
+
+@keyframes marker-pulse {
+  0%, 100% { stroke-width: 3; filter: drop-shadow(0 0 0 rgba(255, 86, 0, 0)); }
+  50% { stroke-width: 6; filter: drop-shadow(0 0 7px rgba(255, 86, 0, .75)); }
+}
+
+.live-marker-pulse { animation: marker-pulse 1.2s ease-in-out 3; }

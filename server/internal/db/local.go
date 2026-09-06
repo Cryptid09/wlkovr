@@ -159,6 +159,17 @@ func localGet[T any](r *localRepo, collection, id string) (T, error) {
 	return doc, nil
 }
 
+func localDelete(r *localRepo, collection, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	docs, err := r.read(collection)
+	if err != nil {
+		return err
+	}
+	delete(docs, id)
+	return r.write(collection, docs)
+}
+
 // localList returns documents in ascending document-ID order, matching the
 // Firestore backend's ordering.
 func localList[T any](r *localRepo, collection string, limit int) ([]T, error) {
@@ -226,6 +237,13 @@ func (r *localRepo) ListExtractions(_ context.Context, limit int) ([]models.AIEx
 
 func (r *localRepo) UpsertCluster(_ context.Context, cluster models.Cluster) error {
 	return localSet(r, CollectionClusters, cluster.ID, cluster)
+}
+
+func (r *localRepo) DeleteCluster(_ context.Context, id string) error {
+	if err := localDelete(r, CollectionClusters, id); err != nil {
+		return err
+	}
+	return localDelete(r, CollectionHotspots, id)
 }
 
 func (r *localRepo) GetCluster(_ context.Context, id string) (models.Cluster, error) {
