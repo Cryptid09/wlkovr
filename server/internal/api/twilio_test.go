@@ -142,3 +142,95 @@ func TestReplySkippedWithoutCredentials(t *testing.T) {
 	// Must not panic or block.
 	handler.replyToCitizen(models.CitizenSignal{ID: "sig-1", SenderPhone: "+916232230297"}, nil, 1)
 }
+
+func postJSON(router http.Handler, body string) *httptest.ResponseRecorder {
+	req, _ := http.NewRequest("POST", "/api/v1/webhooks/viasocket", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+	return resp
+}
+
+// viasocket forwards Twilio's JSON with PascalCase field names. "From" has no
+// lowercase counterpart in the struct, so before this was handled the sender
+// was stored empty and the citizen could never be replied to.
+func TestWebhookAcceptsTwilioJSONFromField(t *testing.T) {
+	handler, _, router := setupTestRouter()
+
+	body := `{"Body":"Khajrana me manhole khula hai","From":"whatsapp:+916232230297","WaId":"916232230297","ProfileName":"Nidhi Agrawal"}`
+	if code := postJSON(router, body).Code; code != http.StatusOK {
+		t.Fatalf("returned %d, want %d", code, http.StatusOK)
+	}
+
+	handler.mutex.RLock()
+	defer handler.mutex.RUnlock()
+	signal := handler.signals[0]
+	if signal.SenderPhone != "+916232230297" {
+		t.Errorf("SenderPhone = %q, want %q", signal.SenderPhone, "+916232230297")
+	}
+	if signal.RawText != "Khajrana me manhole khula hai" {
+		t.Errorf("RawText = %q", signal.RawText)
+	}
+}
+
+// WaId is the bare number with no "+", which Twilio rejects on the way out.
+func TestWebhookFallsBackToWaId(t *testing.T) {
+	handler, _, router := setupTestRouter()
+
+	// Wording the offline rule-based extractor recognises as a civic issue —
+	// this test is about sender normalisation, not classification, so it must
+	// not depend on the extractor's judgement of a borderline phrasing.
+	if code := postJSON(router, `{"Body":"Khajrana me manhole ka dhakkan khula hai","WaId":"916232230297"}`).Code; code != http.StatusOK {
+		t.Fatalf("returned %d", code)
+	}
+
+	handler.mutex.RLock()
+	defer handler.mutex.RUnlock()
+	if got := handler.signals[0].SenderPhone; got != "+916232230297" {
+		t.Errorf("SenderPhone = %q, want %q — WaId must be normalised to E.164", got, "+916232230297")
+	}
+}
+
+// Some flows wrap the original request as {"data": {...}}.
+func TestWebhookUnwrapsNestedData(t *testing.T) {
+	handler, _, router := setupTestRouter()
+
+	body := `{"data":{"Body":"Sudama Nagar me naali overflow ho rahi hai","From":"whatsapp:+916232230297"}}`
+	if code := postJSON(router, body).Code; code != http.StatusOK {
+		t.Fatalf("wrapped payload returned %d, want %d", code, http.StatusOK)
+	}
+
+	handler.mutex.RLock()
+	defer handler.mutex.RUnlock()
+	signal := handler.signals[0]
+	if signal.RawText != "Sudama Nagar me naali overflow ho rahi hai" {
+		t.Errorf("RawText = %q — nested payload was not unwrapped", signal.RawText)
+	}
+	if signal.SenderPhone != "+916232230297" {
+		t.Errorf("SenderPhone = %q", signal.SenderPhone)
+	}
+}
+
+// A wrapped payload with no message anywhere must still be rejected.
+func TestWebhookRejectsEmptyWrappedPayload(t *testing.T) {
+	_, _, router := setupTestRouter()
+
+	if code := postJSON(router, `{"data":{"From":"whatsapp:+916232230297"}}`).Code; code != http.StatusBadRequest {
+		t.Errorf("empty wrapped payload returned %d, want %d", code, http.StatusBadRequest)
+	}
+}
+
+func TestNormalisePhone(t *testing.T) {
+	cases := map[string]string{
+		"whatsapp:+916232230297": "+916232230297",
+		"916232230297":           "+916232230297",
+		"+916232230297":          "+916232230297",
+		"":                       "",
+		"not-a-number":           "not-a-number",
+	}
+	for input, want := range cases {
+		if got := normalisePhone(input); got != want {
+			t.Errorf("normalisePhone(%q) = %q, want %q", input, got, want)
+		}
+	}
+}

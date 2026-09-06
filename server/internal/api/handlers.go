@@ -323,6 +323,24 @@ func (h *Handler) HandleViasocketWebhook(c *gin.Context) {
 		return
 	}
 
+	// A viasocket flow may forward the original request wrapped as
+	// {"data": {...}}; unwrap before deciding the payload is empty.
+	if strings.TrimSpace(payload.Body) == "" && payload.Data != nil {
+		payload = *payload.Data
+	}
+
+	// Twilio identifies the citizen with "From" (whatsapp:+91...) or "WaId"
+	// (916232230297) rather than "sender". Without this the phone number is
+	// stored empty and the acknowledgement can never be delivered.
+	if payload.Sender == "" {
+		switch {
+		case payload.From != "":
+			payload.Sender = payload.From
+		case payload.WaId != "":
+			payload.Sender = payload.WaId
+		}
+	}
+
 	if strings.TrimSpace(payload.Body) == "" && payload.MediaURL == "" {
 		c.JSON(http.StatusBadRequest, models.ApiResponse{
 			Success: false,
@@ -344,7 +362,7 @@ func (h *Handler) HandleViasocketWebhook(c *gin.Context) {
 		RawText:      strings.TrimSpace(payload.Body),
 		Language:     "auto-detected",
 		LocationHint: metadataString(payload.Metadata, "location_hint"),
-		SenderPhone:  strings.TrimPrefix(payload.Sender, "whatsapp:"),
+		SenderPhone:  normalisePhone(payload.Sender),
 		Timestamp:    time.Now(),
 		Metadata:     payload.Metadata,
 	}

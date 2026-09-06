@@ -49,6 +49,17 @@ type ViasocketPayload struct {
 	MediaURL  string                 `json:"media_url,omitempty"`
 	Timestamp string                 `json:"timestamp,omitempty"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+
+	// Twilio names its fields in PascalCase. Go's JSON decoder matches field
+	// names case-insensitively, so "Body" already lands in Body — but "From"
+	// and "WaId" have no lowercase counterpart above and would be dropped,
+	// leaving the sender empty and the citizen unreachable for a reply.
+	From string `json:"From,omitempty"`
+	WaId string `json:"WaId,omitempty"`
+
+	// Some viasocket flows forward the original request wrapped as
+	// {"data": {...}} rather than at the top level.
+	Data *ViasocketPayload `json:"data,omitempty"`
 }
 
 // CitizenSignal represents the canonical signal standard across all channels

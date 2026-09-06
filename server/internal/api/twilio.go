@@ -182,3 +182,22 @@ func (h *Handler) sendTwilioMessage(ctx context.Context, to, body string) error 
 	}
 	return nil
 }
+
+// normalisePhone strips Twilio's channel prefix and restores the leading "+".
+//
+// Twilio sends the citizen either as From ("whatsapp:+916232230297") or as
+// WaId ("916232230297"). The bare WaId form is not E.164, and sending a reply
+// to it fails, so a digits-only value is prefixed.
+func normalisePhone(sender string) string {
+	number := strings.TrimSpace(strings.TrimPrefix(sender, twilioNumberPrefix))
+	if number == "" || strings.HasPrefix(number, "+") {
+		return number
+	}
+
+	for _, r := range number {
+		if r < '0' || r > '9' {
+			return number
+		}
+	}
+	return "+" + number
+}
