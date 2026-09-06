@@ -1,6 +1,6 @@
 module walkover/server
 
-go 1.26.5
+go 1.26.1
 
 require (
 	cloud.google.com/go v0.123.0 // indirect

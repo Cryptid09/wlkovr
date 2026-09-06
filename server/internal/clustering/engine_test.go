@@ -78,3 +78,26 @@ func TestBlindSpotDetection(t *testing.T) {
 		t.Errorf("Expected wealthy ward not to be flagged as Blind Spot")
 	}
 }
+
+// An underserved ward that is actively reporting is visible to us, so it is a
+// demand hotspot — not a blind spot. Flagging it as both contradicts the
+// dashboard and the pitch.
+func TestUnderservedWardWithReportsIsNotBlindSpot(t *testing.T) {
+	engine := NewEngine(urgency.NewEngine())
+
+	wards := []models.Ward{
+		{ID: "ward-poor-loud", Name: "Underserved but reporting", InfraIndex: 0.32},
+		{ID: "ward-poor-silent", Name: "Underserved and silent", InfraIndex: 0.35},
+	}
+	clusters := []models.Cluster{
+		{ID: "cl-1", WardID: "ward-poor-loud"},
+	}
+
+	evaluated := engine.DetectBlindSpots(wards, clusters)
+	if evaluated[0].IsBlindSpot {
+		t.Errorf("Underserved ward with %d active clusters flagged as Blind Spot; want hotspot only", evaluated[0].ActiveClusterCount)
+	}
+	if !evaluated[1].IsBlindSpot {
+		t.Errorf("Underserved ward with no reports not flagged as Blind Spot")
+	}
+}

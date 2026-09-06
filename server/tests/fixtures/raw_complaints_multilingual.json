@@ -1,0 +1,102 @@
+[
+  {
+    "id": "fixture-01",
+    "language": "Hindi",
+    "raw_text": "चंदन नगर गली नंबर 4 में पीने के पानी में सीवेज का बदबूदार गंदा पानी मिल कर आ रहा है। बच्चे बीमार पड़ रहे हैं, तुरंत टैंकर भिजवाएं।",
+    "expected_ward_id": "indore-ward-02",
+    "expected_ward_name": "Ward 14 - Chandan Nagar",
+    "expected_department": "Water Supply & Sewerage",
+    "expected_hazard_tags": ["CONTAMINATED_WATER", "SEWAGE_MIXING"],
+    "min_urgency": 4
+  },
+  {
+    "id": "fixture-02",
+    "language": "Hinglish",
+    "raw_text": "Vijay Nagar square se Mother & Child hospital jane wali road par bahut bada gaddha (road cave-in) ho gaya hai. Ambulance phas rahi hai, jaldi repair karo emergency hai!",
+    "expected_ward_id": "indore-ward-03",
+    "expected_ward_name": "Ward 22 - Vijay Nagar",
+    "expected_department": "Public Works / Roads",
+    "expected_hazard_tags": ["ROAD_CAVE_IN", "HOSPITAL_ROUTE_BLOCKED"],
+    "min_urgency": 5
+  },
+  {
+    "id": "fixture-03",
+    "language": "English",
+    "raw_text": "Dangerous open manhole near Khajrana shrine main market transit road. Two bikes slipped already in evening. High accident risk.",
+    "expected_ward_id": "indore-ward-09",
+    "expected_ward_name": "Ward 60 - Khajrana",
+    "expected_department": "Water Supply & Sewerage",
+    "expected_hazard_tags": ["OPEN_MANHOLE"],
+    "min_urgency": 4
+  },
+  {
+    "id": "fixture-04",
+    "language": "Hindi",
+    "raw_text": "राजवाड़ा सराफा बाजार में मेन ट्रांसफार्मर के पास बिजली का नंगा तार जमीन पर झूल रहा है। कभी भी बड़ा हादसा हो सकता है।",
+    "expected_ward_id": "indore-ward-05",
+    "expected_ward_name": "Ward 35 - Rajwada & Sarafa",
+    "expected_department": "Electricity & Power",
+    "expected_hazard_tags": ["LIVE_WIRE"],
+    "min_urgency": 5
+  },
+  {
+    "id": "fixture-05",
+    "language": "Hinglish",
+    "raw_text": "Old Palasia trauma wing ke pas street lights pichle tin din se band padi hai, raat me andhere ki wajah se log pareshan hain.",
+    "expected_ward_id": "indore-ward-04",
+    "expected_ward_name": "Ward 28 - Old Palasia",
+    "expected_department": "Electricity & Power",
+    "expected_hazard_tags": [],
+    "min_urgency": 2
+  },
+  {
+    "id": "fixture-06",
+    "language": "Hinglish",
+    "raw_text": "Banganga main bus stop ke samne 4 din se kachra nahi uthaya gaya, bohot zyada badbu aa rahi hai.",
+    "expected_ward_id": "indore-ward-01",
+    "expected_ward_name": "Ward 1 - Banganga",
+    "expected_department": "Sanitation & Solid Waste",
+    "expected_hazard_tags": [],
+    "min_urgency": 2
+  },
+  {
+    "id": "fixture-07",
+    "language": "Hindi",
+    "raw_text": "अन्नपूर्णा मंदिर रोड पर सीवर का ढक्कन टूटा हुआ है और गंदा पानी सड़क पर बह रहा है।",
+    "expected_ward_id": "indore-ward-07",
+    "expected_ward_name": "Ward 49 - Annapurna",
+    "expected_department": "Water Supply & Sewerage",
+    "expected_hazard_tags": ["OPEN_MANHOLE", "DRAINAGE_OVERFLOW"],
+    "min_urgency": 3
+  },
+  {
+    "id": "fixture-08",
+    "language": "English",
+    "raw_text": "DAVV university campus road at Bhawarkua has heavy construction debris blocking half the lane for 10 days.",
+    "expected_ward_id": "indore-ward-06",
+    "expected_ward_name": "Ward 42 - Bhawarkua & Vishnupuri",
+    "expected_department": "Public Works / Roads",
+    "expected_hazard_tags": [],
+    "min_urgency": 2
+  },
+  {
+    "id": "fixture-09",
+    "language": "Hinglish",
+    "raw_text": "Sukhliya MR-10 metro pillar area me drinking water pipeline burst ho gayi hai, hazaro litre fresh water waste ho raha hai.",
+    "expected_ward_id": "indore-ward-10",
+    "expected_ward_name": "Ward 64 - Sukhliya",
+    "expected_department": "Water Supply & Sewerage",
+    "expected_hazard_tags": ["CONTAMINATED_WATER"],
+    "min_urgency": 3
+  },
+  {
+    "id": "fixture-10",
+    "language": "Hinglish",
+    "raw_text": "Rau bypass corridor entry par colony ka main drainage chocked hai, barish ka pani gharo ke andar ghus raha hai.",
+    "expected_ward_id": "indore-ward-12",
+    "expected_ward_name": "Ward 78 - Rau & Bypass Corridor",
+    "expected_department": "Water Supply & Sewerage",
+    "expected_hazard_tags": ["DRAINAGE_OVERFLOW"],
+    "min_urgency": 4
+  }
+]

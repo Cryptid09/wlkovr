@@ -27,7 +27,7 @@ An AI-assisted platform that sits *behind* existing citizen channels (no new app
 |---|---|
 | Channel intake & Realtime | **viasocket** (webhook intake/orchestration) + **Socket.IO / WebSockets** (real-time event streaming between Go gateway & Next.js dashboard) |
 | Compute / Backend Engine | **Golang (Go)** (Gin/Chi HTTP framework, Gorilla/go-socket.io WebSockets, official Google Cloud Go SDKs for Gemini & Firestore on Cloud Run) |
-| AI/NLU (multilingual extraction, embeddings, summaries) | **Gemini 2.5 Flash** (via `github.com/google/generative-ai-go` / Vertex AI Go SDK), structured output mode & `text-embedding-004` |
+| AI/NLU (multilingual extraction, embeddings, summaries) | **Gemini 2.5 Flash** (via `github.com/google/generative-ai-go`), structured output mode & **`gemini-embedding-001`** (3072-dim). *`text-embedding-004` 404s on the v1beta endpoint this SDK uses — do not switch back.* |
 | Data store | **Firebase Firestore** (via official `cloud.google.com/go/firestore` Go SDK, Mandeep's 7 collections approach) |
 | Maps/visualization | **Google Maps Platform** (JS API for the hotspot map) |
 | Frontend Dashboard | **Next.js 15 (TypeScript)** + Tailwind CSS + shadcn/ui + Recharts |
@@ -47,6 +47,8 @@ Following Mandeep's data architecture, Firestore stores state across separate co
 - `recommendations`: Grounded AI policy recommendations citing cluster evidence.
 - `audit_logs`: Policymaker human decisions (Accept / Reject / Investigate actions, timestamps, and notes).
 
+**Access layer** (`server/internal/db`): all collections are reached through one `db.Repository` interface — never by constructing a Firestore client directly. It has two interchangeable backends: **Firestore** when `FIRESTORE_EMULATOR_HOST` or `GOOGLE_APPLICATION_CREDENTIALS` is configured, and a **local JSON store** (`server/data/local_store/*.json`) otherwise, so every workstream can develop and test without Google Cloud access. Both store identical document shapes and list in ascending document-ID order. Two document types live in the `db` package rather than `models`: `RawEvent` (the untouched viasocket payload) and `Recommendation` (a grounded brief plus the signal IDs it cites).
+
 - **Seed submissions**: ~30–50 synthetic citizen submissions across those wards, deliberately constructed so:
   - 3–4 wards get 5+ submissions each, in different languages/channels/wording, describing the *same* underlying issue (proves clustering).
   - 2–3 wards get almost no submissions but score poorly on the infra/demographic index (proves blind-spot detection).
@@ -56,6 +58,22 @@ Following Mandeep's data architecture, Firestore stores state across separate co
 ## Clustering approach
 
 Gemini embeddings on the extracted issue text $\rightarrow$ in-memory cosine similarity threshold grouping (constrained to the same ward, since similar complaints in different wards are distinct issues) $\rightarrow$ write computed clusters and hotspots directly to Firestore. Simple, fast, and eliminates heavy external vector DB dependencies during hackathon execution.
+
+**Matching rule** (`server/internal/api/pipeline.go`): a live signal joins a cluster when it is in the same ward *and* either its **mean** cosine similarity to the cluster's embedded signals clears **0.75**, or its department matches exactly (the fallback for extractions with no embedding).
+
+Department values must come from the fixed six-department taxonomy defined in the Gemini prompt (`server/internal/extraction/gemini.go`), which the seed also uses. An earlier mismatch — the seed inventing names like "Sanitation & Drainage" that the prompt never lists — silently broke department matching, so **anything writing a department must use that vocabulary**.
+
+Both numbers are measured, not guessed. Against the seeded corpus embedded with `gemini-embedding-001`:
+
+| | mean cosine |
+|---|---|
+| Within cluster (same issue) | 0.804 – 0.899 |
+| Across clusters (different issues) | 0.607 – 0.691 |
+| Background noise vs cluster | 0.615 – 0.691 |
+
+Lowest within-cluster mean 0.804 vs highest unrelated mean 0.691 → threshold at the 0.75 midpoint, ~0.11 margin either side. **Mean, not max**: the maxima overlap (background noise reaches 0.804 against a cluster while a genuine member pair can sit at 0.721), so one coincidentally similar sentence must not pull an unrelated complaint in. Re-measure if the embedding model changes.
+
+A signal matching nothing stays in the live feed unclustered — a single report never creates a hotspot.
 
 ## Urgency Decision Engine
 
@@ -90,6 +108,72 @@ These four are shown **as separate bars on the dashboard**, never collapsed into
 
 Blind spots use a plain rule: ward has a poor infra/demographic index but submission count is below a threshold → flag as blind-spot candidate.
 
+## Backend: running it
+
+The Go backend is the whole pipeline — ingestion, Gemini extraction, clustering, scoring, persistence and the live WebSocket feed. It runs standalone.
+
+```bash
+cd server
+go run ./cmd/seed --reset --embed   # load the demo corpus into Firestore, then embed it
+go run ./cmd/api                    # serve on :8080
+```
+
+`.env` at the repo root drives both. Two variables decide where data goes:
+
+| Variable | Effect |
+|---|---|
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to the Firebase service account JSON. **Set → Firestore. Unset → local JSON files** under `server/data/local_store/`. |
+| `GEMINI_API_KEY` | Set → live Gemini extraction and embeddings. Unset → deterministic offline fallbacks, and no embeddings are stored. |
+
+The startup log states which of each is in effect — always check these two lines before demoing:
+
+```
+[STORE]  Hydrated from firestore — 12 wards, 3 clusters, 42 signals, 42 embeddings
+[GEMINI] Extractor attached — live structured extraction and embeddings enabled
+```
+
+`Backend: local-json` or `OFFLINE mode` means credentials are missing. The server runs fine either way, which is the point — but the demo needs both live.
+
+**The credentials file is machine-local.** `.env` holds an absolute path to a service account JSON that is git-ignored and not in the repo. Anyone running the backend needs their own copy of that file and must repoint `GOOGLE_APPLICATION_CREDENTIALS` at it.
+
+Reseeding takes roughly two minutes to write ~103 documents to Firestore plus three minutes to embed 42 extractions. **Seed before presenting, never during.**
+
+## Backend: API and WebSocket contract
+
+Base URL `http://localhost:8080/api/v1`. Every REST response is wrapped:
+
+```jsonc
+{ "success": true, "data": <payload>, "message": "...", "error": "..." }
+```
+
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/health` | server status |
+| GET | `/wards` | `Ward[]` — 12 Indore wards with centroid lat/lng, infra index, `is_blind_spot` |
+| GET | `/clusters` | `Cluster[]` — hotspots with the four scores, urgency tier, recommendation |
+| GET | `/clusters/:id` | one `Cluster` (404 when unknown) |
+| GET | `/signals` | `CitizenSignal[]` — live feed, newest first, capped at 50 |
+| GET | `/audit-logs` | `AuditLog[]` — policymaker decision history |
+| POST | `/decisions` | records a human decision: `{cluster_id, action, officer, notes}` |
+| POST | `/webhooks/viasocket` | ingestion endpoint: `{provider, sender, body}` |
+| POST | `/demo/simulate` | fires a synthetic citizen message through the identical path |
+
+Go structs in `server/internal/models/models.go` are the source of truth for every shape; JSON field names come from their `json:` tags.
+
+### WebSocket `ws://localhost:8080/ws`
+
+Every frame is `{ "type": string, "timestamp": string, "data": object }`. Four types are emitted:
+
+| Type | When | `data` |
+|---|---|---|
+| `SIGNAL_RECEIVED` | immediately on ingestion, before Gemini runs | `CitizenSignal` |
+| `SIGNAL_EXTRACTED` | once Gemini has understood it | `AIExtraction` |
+| `CLUSTER_UPDATED` | when a signal joins a cluster and it is rescored | `Cluster` |
+| `DECISION_RECORDED` | when a policymaker acts | `{cluster, audit}` |
+
+The ordering matters for the demo. `SIGNAL_RECEIVED` fires in milliseconds so a WhatsApp message appears instantly; Gemini takes several seconds, so `SIGNAL_EXTRACTED` and `CLUSTER_UPDATED` arrive after. A signal that matches no cluster produces the first two events and no third — a single report never creates a hotspot.
+
+
 ## Build order / workstreams (parallelizable across the 4-person team)
 
 1. **Ingestion & Realtime** — viasocket webhook + Socket.IO real-time event pipeline $\rightarrow$ Canonical Citizen Signal $\rightarrow$ write to Firestore `raw_events` & `citizen_signals`
@@ -99,6 +183,8 @@ Blind spots use a plain rule: ward has a poor infra/demographic index but submis
 5. **Dashboard** — Next.js + Tailwind + shadcn/ui + Recharts: Google Maps + priority queue + Urgency Tier badges + 4 score bars + human decision action buttons + `audit_logs`
 6. **Recommendation text** — Gemini grounded summary citing evidence $\rightarrow$ write to `recommendations`
 
-Status as of this writing: **Architecture & Stack Aligned** — ready for implementation.
+Status: **backend complete and verified end to end against live Firestore and live Gemini.** A multilingual WhatsApp/SMS message posted to the viasocket webhook is extracted, embedded, matched to an existing cluster, rescored and persisted, with every step broadcast over the WebSocket. Seeded corpus: 42 signals, 3 hotspot clusters, 2 blind-spot wards, 12 wards.
+
+Remaining: the Google Maps API key (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is empty), the frontend on its own branch, and pointing a real viasocket flow at `/api/v1/webhooks/viasocket` (see `docs/viasocket/VIASOCKET_SETUP_GUIDE.md`).
 
 Related files: `rules.md` (collaboration & engineering rules), `PROGRESS.md` (task board & test separation), `AGENT.md` (agent work journal), `mandeep.md` (pitch architecture document).
