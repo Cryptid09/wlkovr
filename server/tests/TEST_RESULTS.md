@@ -1,6 +1,10 @@
 # Comprehensive Test Execution Results (Track 2: Gemini NLU Pipeline)
 
+<<<<<<< HEAD
 **Execution Timestamp**: `2026-09-06 14:36:20 IST`
+=======
+**Execution Timestamp**: `2026-09-06 13:01:33 IST`
+>>>>>>> origin/nidhi
 **Target Package**: `walkover/server/internal/extraction`
 **Test Runner**: `server/tests/` (Go 1.27.1 native toolchain)
 **Total Test Scenarios Executed**: 35

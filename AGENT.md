@@ -96,7 +96,11 @@ This file is a persistent, chronological log of all AI agent activities across s
     - **Go Backend team**: Connect live Gemini 2.5 Flash structured output extraction (`internal/extraction/gemini.go`) and Firestore persistence (`internal/db/firestore.go`).
     - **Frontend team**: Run `npm run dev` in `web/` to customize and polish UI components, interactive Google Maps polygons, and charts.
 
+<<<<<<< HEAD
 ### 2026-09-06 12:00 IST - Antigravity (Pair Programming Agent)
+=======
+### 2026-09-06 12:00 IST - Antigravity (Pair Programming Agent - Track 4)
+>>>>>>> origin/nidhi
 - **Workstream / Goal**: Track 4: viasocket & Live Demo Integration (Sponsor Workflow)
 - **Tasks Claimed/Completed**:
   - Aligned `server/go.mod` directive with local Go toolchain (`go 1.26.1`) for seamless offline build/test execution.
@@ -122,7 +126,10 @@ This file is a persistent, chronological log of all AI agent activities across s
 - **Handoff / Next Recommended Steps**:
   - Teammates working on Track 1 (`web/`), Track 2 (`server/internal/extraction/`), and Track 3 (`server/internal/db/`) can continue with zero merge conflicts.
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/nidhi
 ### 2026-09-06 12:05 IST - Antigravity (Pair Programming Agent - Track 2)
 - **Workstream / Goal**: Track 2 - Gemini NLU & Embeddings Pipeline (Go AI Engine)
 - **Tasks Claimed/Completed**:
@@ -132,32 +139,34 @@ This file is a persistent, chronological log of all AI agent activities across s
   - Implemented `text-embedding-004` embedding pipeline with 768-dimensional float32 vector generation and normalized deterministic fallback for offline testing.
   - Implemented Gemini evidence-grounded summary generation citing specific citizen reports and hazard points.
   - Created synthetic multilingual test fixture dataset (`server/internal/extraction/testdata/raw_complaints_multilingual.json`) with 10 real-world Hindi, Hinglish, and English complaints.
-  - Implemented unit test suite (`server/internal/extraction/gemini_test.go`) covering prompt structure, few-shot multilingual extraction, embedding dimensionality/normalization, and grounded cluster summaries.
+  - Implemented comprehensive test suite in `server/tests/` covering prompt structure, few-shot multilingual extraction, embedding dimensionality/normalization, grounded cluster summaries, and integration scenarios.
   - Maintained strict blast radius: zero files modified in `web/` (Track 1), `server/internal/db/` or `server/cmd/seed/` (Track 3), or `server/internal/api/` (Track 4).
 - **Files Modified/Created**:
   - `[NEW] server/internal/extraction/gemini.go` — Gemini 2.5 Flash structured extraction, text-embedding-004, grounded summarizer, offline fallback.
-  - `[NEW] server/internal/extraction/gemini_test.go` — Test suite for extraction, embeddings, prompts, and summaries.
   - `[NEW] server/internal/extraction/testdata/raw_complaints_multilingual.json` — 10 multilingual synthetic test fixtures.
-  - `[MOD] PROGRESS.md` — Marked WS2.2 and WS2.3 as completed with test verification notes.
-  - `[NEW] server/internal/extraction/prompt_test.go` — Test suite for few-shot prompt construction, ward catalog mapping, and markdown cleaner.
-  - `[NEW] server/internal/extraction/embedding_test.go` — Test suite for 768-dim float32 embeddings, L2-normalization, deterministic output, and cosine similarity.
-  - `[NEW] server/internal/extraction/summary_test.go` — Test suite for evidence-grounded cluster summaries, multi-channel corroboration, and hazard identification.
-  - `[NEW] server/internal/extraction/extraction_test.go` — Test suite for pure Hindi/Hinglish signal extraction, urgency/intent correlation, and ward resolution.
-  - `[NEW] server/internal/extraction/benchmark_test.go` — Performance benchmarks for extraction (234 µs/op) and embeddings (68 µs/op).
+  - `[NEW] server/tests/prompt_test.go` — Test suite for few-shot prompt construction, ward catalog mapping, and markdown cleaner.
+  - `[NEW] server/tests/embedding_test.go` — Test suite for 768-dim float32 embeddings, L2-normalization, deterministic output, and cosine similarity.
+  - `[NEW] server/tests/summary_test.go` — Test suite for evidence-grounded cluster summaries, multi-channel corroboration, and hazard identification.
+  - `[NEW] server/tests/extraction_test.go` — Test suite for pure Hindi/Hinglish signal extraction, urgency/intent correlation, and ward resolution.
+  - `[NEW] server/tests/gemini_test.go` — Test suite for multilingual test fixtures.
+  - `[NEW] server/tests/benchmark_test.go` — Performance benchmarks for extraction (241 µs/op) and embeddings (66 µs/op).
   - `[NEW] server/tests/extraction_integration_test.go` — External integration test package for end-to-end consumer verification.
+  - `[NEW] server/tests/reporter_test.go` — Formatted test result reporting test.
   - `[NEW] server/tests/fixtures/raw_complaints_multilingual.json` — Integration test fixtures matching PROGRESS.md test matrix.
+  - `[NEW] test_results_track2.md` — Detailed test execution report with inputs, expected, and actual outputs.
+  - `[NEW] USP.md` — Comprehensive Unique Selling Propositions & Value Proposition document.
   - `[MOD] PROGRESS.md` — Marked WS2.2 and WS2.3 as completed with test verification notes.
   - `[MOD] AGENT.md` — Appended Track 2 journal entry.
 - **Architectural & Design Decisions**:
   - `Extractor` client supports both live Gemini 2.5 Flash structured mode and deterministic offline rule-based fallback so tests and development never stall without an API key or when offline.
   - Fallback embeddings use FastText-style subword character 3-grams and stopword weighting mapped into L2-normalized 768-dimensional float32 vectors, preserving dot-product vector mathematics compatible with the in-memory clustering engine.
 - **Testing & Verification Conducted**:
-  - Track 2 test suite: `go test -v ./internal/extraction/...` $\rightarrow$ 100% PASS across all 5 test files.
-  - Integration test suite: `go test -v ./tests/...` $\rightarrow$ 100% PASS.
-  - Benchmarks: `go test -bench=. ./internal/extraction` $\rightarrow$ Extraction throughput > 4,200 ops/sec, embedding throughput > 14,000 ops/sec.
-  - Full server test suite: `go test -v ./...` $\rightarrow$ 100% PASS across `internal/extraction`, `internal/clustering`, and `internal/urgency`.
+  - Track 2 test suite in `server/tests/`: `go test -v ./tests/...` $\rightarrow$ 100% PASS across all test files.
+  - Benchmarks: `go test -bench=. ./tests` $\rightarrow$ Extraction throughput > 4,100 ops/sec, embedding throughput > 15,000 ops/sec.
+  - Full server test suite: `go test -v ./...` $\rightarrow$ 100% PASS across `internal/extraction`, `internal/api`, `internal/clustering`, and `internal/urgency`.
 - **Handoff / Next Recommended Steps**:
   - Teammate on Track 3 (Firestore Data Layer) can persist `models.AIExtraction` and its embeddings to Firestore `ai_extractions`.
+<<<<<<< HEAD
   - When Track 4 (viasocket webhook) is ready, it can instantiate `extraction.NewExtractor` to enrich incoming signals and feed them to `clustering.Engine`.
 
 
@@ -221,6 +230,9 @@ This file is a persistent, chronological log of all AI agent activities across s
   - Firestore backend still unexercised against a live server (no emulator or credentials provisioned yet).
 - **Handoff / Next Recommended Steps**:
   - Highest-value remaining work is Workstream 2: with the Gemini key now available locally, real `text-embedding-004` embeddings would make clustering *derived* rather than *declared*, which is the platform's core claim.
+=======
+  - Track 4 (viasocket webhook) connects smoothly to `extraction.NewExtractor` to enrich incoming signals and feed them to `clustering.Engine`.
+>>>>>>> origin/nidhi
 
 
 
