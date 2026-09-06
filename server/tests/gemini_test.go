@@ -39,7 +39,7 @@ func loadMultilingualFixtures(t *testing.T) []MultilingualFixture {
 
 func TestExtractSignal_AllMultilingualFixtures(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}

@@ -27,7 +27,7 @@ An AI-assisted platform that sits *behind* existing citizen channels (no new app
 |---|---|
 | Channel intake & Realtime | **viasocket** (webhook intake/orchestration) + **Socket.IO / WebSockets** (real-time event streaming between Go gateway & Next.js dashboard) |
 | Compute / Backend Engine | **Golang (Go)** (Gin/Chi HTTP framework, Gorilla/go-socket.io WebSockets, official Google Cloud Go SDKs for Gemini & Firestore on Cloud Run) |
-| AI/NLU (multilingual extraction, embeddings, summaries) | **Gemini 2.5 Flash** (via `github.com/google/generative-ai-go`), structured output mode & **`gemini-embedding-001`** (3072-dim). *`text-embedding-004` 404s on the v1beta endpoint this SDK uses — do not switch back.* |
+| AI/NLU (multilingual extraction, embeddings, summaries) | **Gemini 3.6 Flash** (via `github.com/google/generative-ai-go`), structured output mode & **`gemini-embedding-001`** (3072-dim). *`text-embedding-004` 404s on the v1beta endpoint this SDK uses — do not switch back.* |
 | Data store | **Firebase Firestore** (via official `cloud.google.com/go/firestore` Go SDK, Mandeep's 7 collections approach) |
 | Maps/visualization | **Leaflet + react-leaflet** with OpenStreetMap tiles. *Changed from Google Maps Platform during the build — no Maps API key was ever provisioned, and Leaflet needs none. The pitch must not claim Google Maps.* |
 | Frontend Dashboard | **Next.js 15 (TypeScript)** + Tailwind CSS + shadcn/ui + Recharts |

@@ -501,7 +501,7 @@ Modules
 | --------- | -------------------- |
 | Frontend  | Next.js              |
 | Backend   | Golang (Gin) on Cloud Run |
-| AI        | Gemini 2.5 Flash     |
+| AI        | Gemini 3.6 Flash     |
 | Database  | Firebase Firestore   |
 | Maps      | Leaflet + OpenStreetMap  |
 | Charts    | Recharts             |

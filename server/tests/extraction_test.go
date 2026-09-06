@@ -10,7 +10,7 @@ import (
 
 func TestExtractSignal_PureHindiScenarios(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestExtractSignal_PureHindiScenarios(t *testing.T) {
 
 func TestExtractSignal_HinglishScenarios(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestExtractSignal_HinglishScenarios(t *testing.T) {
 
 func TestExtractSignal_UrgencyAndIntentCorrelation(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestExtractSignal_UrgencyAndIntentCorrelation(t *testing.T) {
 
 func TestExtractSignal_AllIndoreWardsResolution(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}

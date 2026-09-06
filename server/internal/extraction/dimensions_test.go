@@ -36,7 +36,7 @@ func TestFallbackWidthMatchesConfiguredModel(t *testing.T) {
 		want := embeddingDimensions(model)
 
 		// An empty API key forces the offline fallback path.
-		extractor, err := NewExtractor(ctx, "", "gemini-2.5-flash", model)
+		extractor, err := NewExtractor(ctx, "", "gemini-3.6-flash", model)
 		if err != nil {
 			t.Fatalf("NewExtractor(%q): %v", model, err)
 		}

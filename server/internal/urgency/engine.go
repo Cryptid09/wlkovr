@@ -133,6 +133,11 @@ func (e *Engine) CalculateUrgency(
 		factors = append(factors, "Standard citizen report evaluated by Gemini NLU")
 	}
 
+	// Two hazard tags can map to the same explanation — CONTAMINATED_WATER and
+	// SEWAGE_MIXING share one branch — which would repeat a line in the
+	// policymaker's explainability panel and collide as a React key.
+	factors = dedupe(factors)
+
 	return models.UrgencyResult{
 		Score:        math.Round(totalScore*10) / 10,
 		Tier:         tier,
@@ -141,4 +146,19 @@ func (e *Engine) CalculateUrgency(
 		HazardBoost:  hazardBoost,
 		VelocityRate: velocityRate,
 	}
+}
+
+// dedupe removes repeated factors while preserving the order they were derived
+// in, so the explanation still reads as a sequence of findings.
+func dedupe(values []string) []string {
+	seen := make(map[string]bool, len(values))
+	unique := make([]string, 0, len(values))
+	for _, value := range values {
+		if seen[value] {
+			continue
+		}
+		seen[value] = true
+		unique = append(unique, value)
+	}
+	return unique
 }

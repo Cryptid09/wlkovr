@@ -40,7 +40,7 @@ Traditional grievance systems (such as CM Helpline 181, CPGRAMS, Swachhata App, 
 | Dimension | Traditional Portals (CPGRAMS / CM Helpline / Swachhata) | Zen Civic Intelligence Platform |
 |---|---|---|
 | **Citizen Access Barrier** | Requires downloading dedicated 50MB app or desktop registration | **Zero friction**: Sits behind WhatsApp, Voice Notes, and SMS via viasocket webhook automation |
-| **Language Understanding** | Exact keyword matching (`LIKE '%water%'`); breaks on Hinglish, typos, and dialects | **Gemini 2.5 Flash NLU**: Native Hindi (Devanagari), Hinglish, and English semantic entity extraction |
+| **Language Understanding** | Exact keyword matching (`LIKE '%water%'`); breaks on Hinglish, typos, and dialects | **Gemini 3.6 Flash NLU**: Native Hindi (Devanagari), Hinglish, and English semantic entity extraction |
 | **Ticket Architecture** | 1 submission = 1 isolated ticket (thousands of duplicate tickets overwhelm officers) | **Semantic Clustering**: Groups related complaints into **1 corroborating cluster** (`text-embedding-004`) |
 | **Equity & Social Inclusion** | **Data Blind**: Disproportionately rewards vocal affluent wards | **Equity-First**: Uncovers **Civic Blind Spots** in silent, vulnerable wards via census & infrastructure index |
 | **Urgency Classification** | Subjective officer triage or basic keyword flags | **Deterministic Mathematical Engine**: Base Gemini + Hard Hazard Multipliers (2.0x) + Velocity Bursts |
@@ -94,7 +94,7 @@ Traditional grievance systems (such as CM Helpline 181, CPGRAMS, Swachhata App, 
 ### USP 2: Multilingual Semantic Clustering & Cross-Language Corroboration
 - **The Problem**: Municipal call centers receive complaints in pure Hindi, regional slang, code-mixed Hinglish, and formal English. Because traditional databases rely on string pattern matching, identical issues reported in different languages are filed into separate queues.
 - **Our Innovation**:
-  - **Gemini 2.5 Flash Structured Extraction**: Extracts normalized entities from messy colloquial text:
+  - **Gemini 3.6 Flash Structured Extraction**: Extracts normalized entities from messy colloquial text:
     - Primary issue category (`Water Supply`, `Sanitation / Drainage`, `Roads / Infrastructure`, `Electricity`, `Public Health`).
     - Ward location resolution (`indore-ward-01` to `indore-ward-85`).
     - Specific hazard tags (`CONTAMINATED_WATER`, `LIVE_WIRE`, `OPEN_MANHOLE`, `ROAD_CAVE_IN`, `HOSPITAL_ROUTE_BLOCKED`).
@@ -200,7 +200,7 @@ WhatsApp / Voice / SMS
          ▼ HTTP POST
 [ Go Backend: /api/v1/webhooks/viasocket ]
          │
-         ├──► Gemini 2.5 Flash: Structured Entity Extraction (Hindi / Hinglish / English)
+         ├──► Gemini 3.6 Flash: Structured Entity Extraction (Hindi / Hinglish / English)
          │    └─► Issue, Ward ID, Department, Hazard Tags, Urgency (1-5)
          │
          ├──► gemini-embedding-001: 3072-Dim Vector Embedding Generation
@@ -286,7 +286,7 @@ WhatsApp / Voice / SMS
 | GDG Judging Criterion | How Zen Civic Intelligence Excels | Where to Verify in Codebase |
 |---|---|---|
 | **Impact & Social Good (25%)** | Solves the fundamental inequity of civic governance by proactively surfacing **Civic Blind Spots** in silent, impoverished wards that traditional portals ignore. | `server/internal/clustering/engine.go` (`DetectBlindSpots`) |
-| **Technical Innovation & AI (25%)** | Leverages **Gemini 2.5 Flash** for structured multilingual extraction + **gemini-embedding-001** (3072-dim) for cross-language semantic clustering + a **deterministic hash-based fallback** for 100% offline resilience. | `server/internal/extraction/gemini.go` |
+| **Technical Innovation & AI (25%)** | Leverages **Gemini 3.6 Flash** for structured multilingual extraction + **gemini-embedding-001** (3072-dim) for cross-language semantic clustering + a **deterministic hash-based fallback** for 100% offline resilience. | `server/internal/extraction/gemini.go` |
 | **Architectural Rigor (20%)** | High-performance Go microservice architecture: sub-3ms ingestion latency, deterministic mathematical urgency calculation (zero LLM hallucination risk), and transparent 4D scoring. | `server/internal/urgency/engine.go` |
 | **Sponsor Integration (15%)** | End-to-end **viasocket automation**: receives WhatsApp/SMS webhooks, transforms JSON payloads, and pushes directly to live Go API with zero user friction. | `docs/viasocket/VIASOCKET_SETUP_GUIDE.md`, `server/internal/api/` |
 | **Design & Explainability (15%)** | Interactive Leaflet map with hotspot and blind-spot markers, live WebSocket stream, 4D score charts, and strict human-in-the-loop audit logs. | `web/src/components/`, `server/internal/api/websocket.go` |
@@ -296,7 +296,7 @@ WhatsApp / Voice / SMS
 ## 7. Pitch & Presentation Cheat Sheet
 
 ### 30-Second Elevator Pitch (Memorize This)
-> *"Traditional grievance portals are fundamentally broken because they operate on a squeaky wheel bias: whoever shouts the loudest on Twitter gets their road paved, while poorer, silent communities are ignored. **Zen Civic Intelligence** turns fragmented WhatsApp, SMS, and voice complaints across Hindi, Hinglish, and English into actionable intelligence. We use **Gemini 2.5 Flash** to cluster issues across languages, calculate hard deterministic urgency with SLAs, and combine complaints with census data to uncover **Civic Blind Spots**. With transparent 4D scoring and strict human-in-the-loop auditability, we help Indore Municipal Corporation fund what is truly needed, not just what was loudly tweeted."*
+> *"Traditional grievance portals are fundamentally broken because they operate on a squeaky wheel bias: whoever shouts the loudest on Twitter gets their road paved, while poorer, silent communities are ignored. **Zen Civic Intelligence** turns fragmented WhatsApp, SMS, and voice complaints across Hindi, Hinglish, and English into actionable intelligence. We use **Gemini 3.6 Flash** to cluster issues across languages, calculate hard deterministic urgency with SLAs, and combine complaints with census data to uncover **Civic Blind Spots**. With transparent 4D scoring and strict human-in-the-loop auditability, we help Indore Municipal Corporation fund what is truly needed, not just what was loudly tweeted."*
 
 ---
 
@@ -306,7 +306,7 @@ WhatsApp / Voice / SMS
 > *"Because apps require citizens to download them, register, and know how to navigate menus. The citizens facing the most dangerous hazards—daily wage workers, elderly citizens, slum dwellers—do not download 50MB apps. By operating behind WhatsApp, SMS, and voice notes via viasocket, we have zero citizen acquisition friction and 100% immediate community reach."*
 
 **Q2: What happens if Gemini hallucinates or the internet goes down?**  
-> *"We built an enterprise dual-mode architecture. In live mode, Gemini 2.5 Flash provides state-of-the-art multilingual extraction. If internet connectivity drops or API quotas are hit, our deterministic rule-based extractor and hash-based subword vector engine seamlessly take over in under 1 millisecond with zero downtime. Those fallback vectors are deterministic stand-ins, not semantic embeddings, so clustering falls back to ward and department matching until the model returns."*
+> *"We built an enterprise dual-mode architecture. In live mode, Gemini 3.6 Flash provides state-of-the-art multilingual extraction. If internet connectivity drops or API quotas are hit, our deterministic rule-based extractor and hash-based subword vector engine seamlessly take over in under 1 millisecond with zero downtime. Those fallback vectors are deterministic stand-ins, not semantic embeddings, so clustering falls back to ward and department matching until the model returns."*
 
 **Q3: How do you guarantee the AI won't discriminate against wealthy neighborhoods or spend municipal money arbitrarily?**  
 > *"Our AI never spends money or closes tickets. It recommends; human officers decide. Secondly, our 4D scoring is completely transparent: Need, Confidence, Equity, and Actionability are displayed as separate, auditable bars. An officer can see exactly why a cluster was prioritized, and every single approval or rejection is immutably logged with the officer's ID to an audit trail."*

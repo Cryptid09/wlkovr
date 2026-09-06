@@ -10,7 +10,7 @@ import (
 
 func TestBuildPrompt_IndoreWardCatalog(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestBuildPrompt_IndoreWardCatalog(t *testing.T) {
 
 func TestBuildPrompt_FewShotMultilingualIntegrity(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestBuildPrompt_FewShotMultilingualIntegrity(t *testing.T) {
 
 func TestBuildPrompt_HazardTagsSpec(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestBuildPrompt_HazardTagsSpec(t *testing.T) {
 
 func TestBuildPrompt_UrgencyScaleSpec(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestBuildPrompt_UrgencyScaleSpec(t *testing.T) {
 
 func TestBuildPrompt_LocationHintFormatting(t *testing.T) {
 	ctx := context.Background()
-	ext, err := extraction.NewExtractor(ctx, "", "gemini-2.5-flash", "gemini-embedding-001")
+	ext, err := extraction.NewExtractor(ctx, "", "gemini-3.6-flash", "gemini-embedding-001")
 	if err != nil {
 		t.Fatalf("Failed to initialize extractor: %v", err)
 	}

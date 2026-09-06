@@ -56,7 +56,7 @@ type ExtractedResponse struct {
 // NewExtractor initializes the Gemini extractor with specified models
 func NewExtractor(ctx context.Context, apiKey string, modelName string, embeddingModel string) (*Extractor, error) {
 	if modelName == "" {
-		modelName = "gemini-2.5-flash"
+		modelName = "gemini-3.6-flash"
 	}
 	if embeddingModel == "" {
 		embeddingModel = "text-embedding-004"

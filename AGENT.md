@@ -387,3 +387,33 @@ This file is a persistent, chronological log of all AI agent activities across s
   - `go build`, `go vet`, `go test ./...` → PASS. `npm run build` → 7 routes compiled.
 - **Blockers / Open Questions**:
   - The pitch deck PDF (`Zen_ Build with ai Hackathon.pdf`) still lists **Google Maps Platform** under "Google Technologies used in the solution". It is a binary and cannot be edited here — someone must fix that slide or drop the line.
+
+### 2026-09-06 15:20 IST - Claude Code (end-to-end system integration)
+- **Workstream / Goal**: Make the whole application work end to end: real data in the UI, authenticated public ingestion, live viasocket path
+- **Tasks Claimed/Completed**:
+  - **The dashboard was never showing backend data.** `web/src/lib/api.ts` had `USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_DATA !== "false"`, and the variable was unset, so it evaluated true and every fetch returned hardcoded mocks. Only the WebSocket was live. Live data is now the default and mocks are opt-in.
+  - Added shared-secret authentication to `POST /api/v1/webhooks/viasocket` and exposed the backend publicly via a cloudflared tunnel.
+  - **Fixed a second dead model.** `gemini-2.5-flash` now returns 404 "no longer available to new users"; Google's error names `gemini-3.6-flash` as the replacement. Updated everywhere.
+  - Deduplicated urgency explainability factors.
+- **Files Modified/Created**:
+  - `[MOD] web/src/lib/api.ts`, `[MOD] web/.env.local`, `[MOD] web/.env.example` — live data by default; on fetch failure return empty rather than silently substituting fabricated clusters.
+  - `[NEW] server/internal/api/middleware.go` — `RequireWebhookSecret`, constant-time comparison, disabled when no secret is configured.
+  - `[NEW] server/internal/api/middleware_test.go` — 5 tests: missing/wrong/correct secret, open when unconfigured, and that dashboard endpoints stay ungated.
+  - `[MOD] server/internal/api/router.go` — webhook route gated.
+  - `[MOD] server/internal/urgency/engine.go` + test — `dedupe` on factors.
+  - `[MOD] .env`, `.env.example`, `config/config.go`, `extraction/gemini.go`, and all docs — `gemini-3.6-flash`.
+  - `[MOD] docs/viasocket/VIASOCKET_SETUP_GUIDE.md` — documents the required header and cloudflared.
+- **Architectural & Design Decisions**:
+  - **Mock data must be opt-in.** A demo silently falling back to fabricated clusters that look plausible is worse than showing nothing, so a failed fetch now returns empty and logs an error unless mocks were explicitly requested.
+  - **The webhook secret is the minimum bar, not request signing.** It stops casual injection through a public tunnel; it is not HMAC verification.
+  - Pinned `gemini-3.6-flash` rather than the `gemini-flash-latest` alias, so behaviour is reproducible. Two pinned models have now died mid-build, so re-run the probe if extraction starts degrading.
+- **Testing & Verification Conducted**:
+  - `go build`, `go vet`, `go test ./...` → PASS. `npm run build` → 7 routes.
+  - Live through the public tunnel: unauthenticated POST → 401 (logged with client IP); authenticated POST → 200 → Gemini 3.6 extraction with no degradation → joined `cluster-indore-002`, 12 → 13 signals, Tier 1 held.
+  - Earlier run confirmed the browser is rendering live data: the dev server logged a React key collision on `Drinking water contamination / sewage mixing`, a factor string produced by the backend that appears nowhere in the mock file. That collision is what surfaced the duplicate-factor bug, now fixed.
+  - Explainability factors verified unique; API serves need=94 for cluster-001 where the mock said 96.
+- **Blockers / Open Questions**:
+  - cloudflared quick tunnels get a **new random URL on every restart**, so the viasocket flow's HTTP action must be updated each time the tunnel restarts. A named tunnel needs a Cloudflare account.
+  - The dashboard still has not been visually inspected in a browser.
+- **Handoff / Next Recommended Steps**:
+  - Paste the current tunnel URL + `/api/v1/webhooks/viasocket` into the viasocket flow's HTTP action, with header `X-Webhook-Secret`.

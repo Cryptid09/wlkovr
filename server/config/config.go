@@ -41,7 +41,9 @@ func LoadConfig() *Config {
 		Env:                    getEnv("ENV", "development"),
 		AllowedOrigins:         allowedOrigins,
 		GeminiAPIKey:           getEnv("GEMINI_API_KEY", ""),
-		GeminiModel:            getEnv("GEMINI_MODEL", "gemini-2.5-flash"),
+		// gemini-2.5-flash returned "no longer available to new users" mid-build;
+		// Google's own error names gemini-3.6-flash as the replacement.
+		GeminiModel:            getEnv("GEMINI_MODEL", "gemini-3.6-flash"),
 		// text-embedding-004 is not served on the v1beta generativelanguage
 		// endpoint this SDK uses — it 404s. gemini-embedding-001 is the model
 		// that actually responds (3072 dimensions).
